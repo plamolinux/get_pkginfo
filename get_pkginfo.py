@@ -82,10 +82,14 @@ def download_pkg_withdir(dirpath, url):
         print "URL Error:", e.reason, url
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Plamo Linux update packages check and download')
-    parser.add_argument('-d','--download', action='store_true', help='download package(s)')
-    parser.add_argument('-b','--blocklist',action='store_true', help='ignore block list')
-    parser.add_argument('-r','--reverse', action='store_true', help='find un-installed package(s)')
+    parser = argparse.ArgumentParser(description =
+            'Plamo Linux update packages check and download')
+    parser.add_argument('-d', '--download',
+            action = 'store_true', help = 'download package(s)')
+    parser.add_argument('-b', '--blocklist',
+            action = 'store_true', help = 'ignore block list')
+    parser.add_argument('-r', '--reverse',
+            action = 'store_true', help = 'find un-installed package(s)')
     args = parser.parse_args()
     return args
 
@@ -110,9 +114,9 @@ def rev_replaces(replaces):
 
     # print(rev_list)
     return(rev_list)
-        
+
 def main():
-    ''' 
+    '''
     my_arch: この環境の arch 名(x86/x86_64)
     local_pkgs: この環境にインストール済みパッケージのリスト
     ftp_pkgs: FTPサーバ上にあるパッケージのリスト
@@ -134,17 +138,20 @@ def main():
             del(local_pkgs[bp])
 
     '''
-    改名，分割，集約したパッケージを追跡する処理．ftp_pkgs['__replaces'] には，該当するパッケージが
-    replace_list['old_name'] = (version, (new_name1, new_name2,,,)) という形で入っており，
-    check_replaces() で，local_pkgs['old_name'] を local_pkgs['new_name1'] = (ver, arch, build)
-    の形に組み直し，ftp_pkgs['new_name1'] と比較して更新対象にする．
-    その際，local_pkgs の old_name は失なわれるので，表示用に rev_list として 'new_name1' -> 'old_name',
-    'new_name2' -> 'old_name' のようなデータを記録しておく．
+    改名，分割，集約したパッケージを追跡する処理．
+    ftp_pkgs['__replaces'] には，該当するパッケージが
+    replace_list['old_name'] = (version, (new_name1, new_name2,,,))
+    という形で入っており，check_replaces() で，local_pkgs['old_name'] を
+    local_pkgs['new_name1'] = (ver, arch, build) の形に組み直し，
+    ftp_pkgs['new_name1'] と比較して更新対象にする．
+    その際，local_pkgs の old_name は失なわれるので，表示用に rev_list
+    として 'new_name1' -> 'old_name', 'new_name2' -> 'old_name' のよう
+    なデータを記録しておく．
     '''
     replaces = ftp_pkgs['__replaces']
     rev_list = rev_replaces(replaces)
     check_pkgs = check_replaces(local_pkgs, replaces)
-    
+
     if param.reverse == False:
         for i in local_pkgs.keys():
             try:
@@ -156,10 +163,14 @@ def main():
                         pkgname = rev_list[i]
                     else:
                         pkgname = i
-                    print("local package:{}-{}-{}-{}".format(pkgname, local_ver, local_arch, local_build))
-                    print("new package:{}-{}-{}-{}".format(i, ver, p_arch, build))
+                    print("local package:{}-{}-{}-{}".format(
+                            pkgname, local_ver, local_arch, local_build))
+                    print("new package:{}-{}-{}-{}".format(
+                            i, ver, p_arch, build))
                     get_path = path.replace("/home/ftp/pub/", "")
-                    url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path + "/" + i + "-" + ver + "-" + p_arch + "-" + build + "." + ext
+                    url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path + "/" \
+                            + i + "-" + ver + "-" + p_arch + "-" + build \
+                            + "." + ext
                     print(url2)
                     print("")
                     if param.download == True:
@@ -170,10 +181,11 @@ def main():
                             subdir = t_path[-1]
                         else:
                             print("this shouldn't be happen")
-                        
+
                         download_pkg_withdir(subdir, url2)
             except KeyError:
-                sys.stderr.write("package: {} doesn't exit in FTP tree.\n".format(i))
+                sys.stderr.write(
+                        "package: {} doesn't exit in FTP tree.\n".format(i))
                 sys.stderr.write("\n")
 
     else:  # reverse lookup
@@ -189,7 +201,8 @@ def main():
                     if len(path_list) == 9:
                         if path_list[-2] not in cat_list:
                             cat_list.append(path_list[-2])
-                        not_installed.append((path_list[-2], path_list[-1], i, ftp_pkgs[i]))
+                        not_installed.append((path_list[-2], path_list[-1],
+                                i, ftp_pkgs[i]))
                     elif len(path_list) == 8:
                         if path_list[-1] not in cat_list:
                             cat_list.append(path_list[-1])
@@ -214,7 +227,7 @@ def main():
                     tmp_list.append(j)
             '''
             tmp_list[] 中にはサブカテゴリも含まれるので，それらを再度ソートし，
-	    サブカテゴリのあるものを先に表示する．
+            サブカテゴリのあるものを先に表示する．
             '''
             for jj in sorted(tmp_list):
             # print(jj)
@@ -222,25 +235,30 @@ def main():
                     subdir = jj[1]
                     basename = jj[2]
                     (ver, arch, build, ext, path) = jj[3]
-                    print("\t{}/{}-{}-{}-{}.{}".format(subdir, basename, ver, arch, build, ext))
+                    print("\t{}/{}-{}-{}-{}.{}".format(
+                            subdir, basename, ver, arch, build, ext))
                     if param.download == True:
-                        pkgname = basename + "-" + ver + "-" + arch + "-" + build + "." + ext
+                        pkgname = basename + "-" + ver + "-" + arch \
+                                + "-" + build + "." + ext
                         get_path = path.replace("/home/ftp/pub/", "")
-                        url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path + "/" + pkgname
+                        url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path \
+                                + "/" + pkgname
                         dirpath = cat + "/" + subdir
                         download_pkg_withdir(dirpath, url2)
             for jj in sorted(tmp_list):
                 if len(jj) == 3:
                     basename = jj[1]
                     (ver, arch, build, ext, path) = jj[2]
-                    print("\t{}-{}-{}-{}.{}".format(basename, ver, arch, build, ext))
+                    print("\t{}-{}-{}-{}.{}".format(
+                            basename, ver, arch, build, ext))
                     if param.download == True:
-                        pkgname = basename + "-" + ver + "-" + arch + "-" + build + "." + ext
+                        pkgname = basename + "-" + ver + "-" + arch + "-" \
+                                + build + "." + ext
                         get_path = path.replace("/home/ftp/pub/", "")
-                        url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path + "/" + pkgname
-                        dirpath = cat 
+                        url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path \
+                                + "/" + pkgname
+                        dirpath = cat
                         download_pkg_withdir(dirpath, url2)
 
 if __name__ == "__main__":
     main()
-
