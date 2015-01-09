@@ -1,20 +1,16 @@
-#! /usr/bin/python2
+#!/usr/bin/python2
 # -*- coding: euc-jp -*-
 
-import sys, os, subprocess, pickle, argparse
-from urllib2 import urlopen, URLError, HTTPError
+import sys, os, subprocess, pickle, argparse, urllib2
 
 PKG_PATH = '/var/log/packages/'
 FTP_URL = 'ftp://plamo.linet.gr.jp/pub/Plamo-5.x/'
+#FTP_URL = 'ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/'
+#FTP_URL = 'ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/'
 
 def get_arch():
-    res = subprocess.check_output(['uname', '-m'])
-    if  res.strip() == 'x86_64':
-        arch = 'x86_64'
-    else:
-        arch = 'x86'
-    # print("arch:{}".format(arch))
-    return(arch)
+    arch = subprocess.check_output('uname -m'.split()).strip()
+    return('x86' if arch == 'i686' else arch)
 
 def get_localpkgs():
     files = os.listdir(PKG_PATH)
@@ -35,22 +31,13 @@ def get_localpkgs():
 
 def get_ftp_pkgs(arch):
     url = FTP_URL + "allpkgs_" + arch + ".pickle"
-    response = urlopen(url)
+    response = urllib2.urlopen(url)
     newpkgs = pickle.load(response)
     return(newpkgs)
 
-'''
-# for local debugging
-def get_ftp_pkgs2(arch):
-    file = "allpkgs_" + arch + ".pickle"
-    with open(file, 'rb') as f:
-        newpkgs = pickle.load(f)
-    return(newpkgs)
-'''
-
 def download_pkg(url):
     try:
-        f = urlopen(url)
+        f = urllib2.urlopen(url)
         print("downloading: {}".format(url))
 
         # Open our local file for writing
@@ -58,15 +45,15 @@ def download_pkg(url):
             local_file.write(f.read())
 
     #handle errors
-    except HTTPError, e:
+    except urllib2.HTTPError, e:
         print "HTTP Error:", e.code, url
-    except URLError, e:
+    except urllib2.URLError, e:
         print "URL Error:", e.reason, url
 
 def download_pkg_withdir(dirpath, url):
     print("dirpath:{}, url:{}".format(dirpath, url))
     try:
-        f = urlopen(url)
+        f = urllib2.urlopen(url)
         print("downloading: {}".format(url))
 
         # Open our local file for writing
@@ -76,9 +63,9 @@ def download_pkg_withdir(dirpath, url):
         with open(filepath, "wb") as local_file:
             local_file.write(f.read())
     #handle errors
-    except HTTPError, e:
+    except urllib2.HTTPError, e:
         print "HTTP Error:", e.code, url
-    except URLError, e:
+    except urllib2.URLError, e:
         print "URL Error:", e.reason, url
 
 def get_args():
@@ -112,7 +99,6 @@ def rev_replaces(replaces):
         for j in new_pkgs:
             rev_list[j] = i
 
-    # print(rev_list)
     return(rev_list)
 
 def main():
