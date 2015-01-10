@@ -10,59 +10,43 @@ FTP_URL = 'ftp://plamo.linet.gr.jp/pub/Plamo-5.x/'
 
 def get_arch():
     arch = subprocess.check_output('uname -m'.split()).strip()
-    return('x86' if arch == 'i686' else arch)
+    return 'x86' if arch == 'i686' else arch
 
 def get_localpkgs():
     files = os.listdir(PKG_PATH)
     pkglist = {}
     for file in files:
-        file_path = PKG_PATH + file
-        f = open(file_path, 'r')
-        line = f.readline()
-        (tmp, dt) = line.split(":")
-        pkgname = dt.strip()
-        # print(file, pkgname)
-        (basename, vers, p_arch, build) = pkgname.split("-")
+        line = open(PKG_PATH + file, 'r').readline()
+        (basename, vers, p_arch, build) = line[18:].strip().split("-")
         pkglist[basename] = (vers, p_arch, build)
-
-        # print(pkglist)
-        # get pickled data
-    return(pkglist)
+    return pkglist
 
 def get_ftp_pkgs(arch):
     url = FTP_URL + "allpkgs_" + arch + ".pickle"
-    response = urllib2.urlopen(url)
-    newpkgs = pickle.load(response)
-    return(newpkgs)
+    return pickle.load(urllib2.urlopen(url))
 
 def download_pkg(url):
+    print("downloading: {}".format(url))
     try:
         f = urllib2.urlopen(url)
-        print("downloading: {}".format(url))
-
-        # Open our local file for writing
-        with open(os.path.basename(url), "wb") as local_file:
-            local_file.write(f.read())
-
-    #handle errors
     except urllib2.HTTPError, e:
         print "HTTP Error:", e.code, url
     except urllib2.URLError, e:
         print "URL Error:", e.reason, url
+    else:
+        with open(os.path.basename(url), "w") as local_file:
+            local_file.write(f.read())
 
 def download_pkg_withdir(dirpath, url):
     print("dirpath:{}, url:{}".format(dirpath, url))
     try:
         f = urllib2.urlopen(url)
         print("downloading: {}".format(url))
-
-        # Open our local file for writing
-        if os.path.isdir(dirpath) == False:
+        if not os.path.isdir(dirpath):
             os.makedirs(dirpath)
         filepath = dirpath + "/" + os.path.basename(url)
         with open(filepath, "wb") as local_file:
             local_file.write(f.read())
-    #handle errors
     except urllib2.HTTPError, e:
         print "HTTP Error:", e.code, url
     except urllib2.URLError, e:
@@ -82,15 +66,13 @@ def get_args():
 
 def check_replaces(orig_list, replaces):
     for ck in replaces.keys():
-        # print(ck, replaces[ck][0])
-        if orig_list.has_key(ck) == True :
+        if orig_list.has_key(ck):
             (ver, arch, build) = orig_list[ck]
             if replaces[ck][0] >= ver:
                 del(orig_list[ck])
                 for rep in replaces[ck][1]:
                     orig_list[rep] = (ver, arch, build)
-
-    return(orig_list)
+    return orig_list
 
 def rev_replaces(replaces):
     rev_list = {}
@@ -98,10 +80,10 @@ def rev_replaces(replaces):
         new_pkgs = replaces[i][1]
         for j in new_pkgs:
             rev_list[j] = i
-
-    return(rev_list)
+    return rev_list
 
 def main():
+    param = get_args()
     '''
     my_arch: この環境の arch 名(x86/x86_64)
     local_pkgs: この環境にインストール済みパッケージのリスト
@@ -110,19 +92,15 @@ def main():
     my_arch = get_arch()
     local_pkgs = get_localpkgs()
     ftp_pkgs = get_ftp_pkgs(my_arch)
-
-    param = get_args()
-
     '''
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs['__blockpkgs'])は表示しない(= local_pkgs リストから除く)
     '''
-    if param.blocklist == False and param.reverse == False:
+    if not param.blocklist and not param.reverse:
         blocklist = ftp_pkgs['__blockpkgs']
         for bp in blocklist:
             # print(bp)
             del(local_pkgs[bp])
-
     '''
     改名，分割，集約したパッケージを追跡する処理．
     ftp_pkgs['__replaces'] には，該当するパッケージが
@@ -137,15 +115,14 @@ def main():
     replaces = ftp_pkgs['__replaces']
     rev_list = rev_replaces(replaces)
     check_pkgs = check_replaces(local_pkgs, replaces)
-
-    if param.reverse == False:
+    if not param.reverse:
         for i in local_pkgs.keys():
             try:
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
                 chk = (ver, p_arch, build)
                 if local_pkgs[i] != chk:
                     (local_ver, local_arch, local_build) = local_pkgs[i]
-                    if rev_list.has_key(i) == True :
+                    if rev_list.has_key(i):
                         pkgname = rev_list[i]
                     else:
                         pkgname = i
@@ -159,7 +136,7 @@ def main():
                             + "." + ext
                     print(url2)
                     print("")
-                    if param.download == True:
+                    if param.download:
                         t_path = get_path.split("/")
                         if len(t_path) == 5:
                             subdir = t_path[-2] + "/" + t_path[-1]
@@ -167,20 +144,18 @@ def main():
                             subdir = t_path[-1]
                         else:
                             print("this shouldn't be happen")
-
                         download_pkg_withdir(subdir, url2)
             except KeyError:
                 sys.stderr.write(
                         "package: {} doesn't exit in FTP tree.\n".format(i))
                 sys.stderr.write("\n")
-
     else:  # reverse lookup
         not_installed = []
         cat_list = []
         for i in ftp_pkgs.keys():
             if i == '__replaces' or i == '__blockpkgs':
                 continue
-            if local_pkgs.has_key(i) == False:
+            if not local_pkgs.has_key(i):
                     # print(i, ftp_pkgs[i])
                     (ver, p_arch, build, ext, path) = ftp_pkgs[i]
                     path_list = path.split("/")
@@ -197,8 +172,6 @@ def main():
                         print("This shouldn't be happen. aborted")
                         print("i:{} pkg:{}".format(i, ftp_pkgs[i]))
                         sys.exit()
-
-
         # print(not_installed)
         print("un-selected packages:")
         '''
@@ -223,7 +196,7 @@ def main():
                     (ver, arch, build, ext, path) = jj[3]
                     print("\t{}/{}-{}-{}-{}.{}".format(
                             subdir, basename, ver, arch, build, ext))
-                    if param.download == True:
+                    if param.download:
                         pkgname = basename + "-" + ver + "-" + arch \
                                 + "-" + build + "." + ext
                         get_path = path.replace("/home/ftp/pub/", "")
@@ -237,7 +210,7 @@ def main():
                     (ver, arch, build, ext, path) = jj[2]
                     print("\t{}-{}-{}-{}.{}".format(
                             basename, ver, arch, build, ext))
-                    if param.download == True:
+                    if param.download:
                         pkgname = basename + "-" + ver + "-" + arch + "-" \
                                 + build + "." + ext
                         get_path = path.replace("/home/ftp/pub/", "")
