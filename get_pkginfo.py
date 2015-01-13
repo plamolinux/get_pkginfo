@@ -65,6 +65,7 @@ def get_args():
     return args
 
 def check_replaces(orig_list, replaces):
+    replaced = []
     for ck in replaces.keys():
         if orig_list.has_key(ck):
             (ver, arch, build) = orig_list[ck]
@@ -72,7 +73,8 @@ def check_replaces(orig_list, replaces):
                 del(orig_list[ck])
                 for rep in replaces[ck][1]:
                     orig_list[rep] = (ver, arch, build)
-    return orig_list
+                    replaced.append(rep)
+    return orig_list, replaced
 
 def rev_replaces(replaces):
     rev_list = {}
@@ -99,7 +101,6 @@ def main():
     if not param.blocklist and not param.reverse:
         blocklist = ftp_pkgs['__blockpkgs']
         for bp in blocklist:
-            # print(bp)
             del(local_pkgs[bp])
     '''
     改名，分割，集約したパッケージを追跡する処理．
@@ -108,13 +109,16 @@ def main():
     という形で入っており，check_replaces() で，local_pkgs['old_name'] を
     local_pkgs['new_name1'] = (ver, arch, build) の形に組み直し，
     ftp_pkgs['new_name1'] と比較して更新対象にする．
+    check_replaces() では，local_pkgs[] を元に組み直したリスト
+    (check_pkgs[])とどのパッケージを組み直したかの情報(replaced[])を返す．
     その際，local_pkgs の old_name は失なわれるので，表示用に rev_list
     として 'new_name1' -> 'old_name', 'new_name2' -> 'old_name' のよう
-    なデータを記録しておく．
+    なデータを記録しておき，replaced[] にあるパッケージ名を表示する際に
+    は rev_list[] を使う．
     '''
     replaces = ftp_pkgs['__replaces']
     rev_list = rev_replaces(replaces)
-    check_pkgs = check_replaces(local_pkgs, replaces)
+    (check_pkgs, replaced) = check_replaces(local_pkgs, replaces)
     if not param.reverse:
         for i in check_pkgs.keys():
             try:
@@ -122,14 +126,20 @@ def main():
                 chk = (ver, p_arch, build)
                 if check_pkgs[i] != chk:
                     (local_ver, local_arch, local_build) = check_pkgs[i]
-                    if rev_list.has_key(i):
-                        pkgname = rev_list[i]
+                    if rev_list.has_key(i) and i in replaced:
+                        print("** local package:{}-{}-{}-{} was renamed to"
+                                .format(rev_list[i], local_ver, local_arch,
+                                local_build))
+                        print("** new package:{}-{}-{}-{}".format(
+                                i, ver, p_arch, build))
+                        print("** You should manually remove old package "
+                                "(# removepkg {}) to update new one".format(
+                                rev_list[i]))
                     else:
-                        pkgname = i
-                    print("local package:{}-{}-{}-{}".format(
-                            pkgname, local_ver, local_arch, local_build))
-                    print("new package:{}-{}-{}-{}".format(
-                            i, ver, p_arch, build))
+                        print("local package:{}-{}-{}-{}".format(
+                                i, local_ver, local_arch, local_build))
+                        print("new package:{}-{}-{}-{}".format(
+                                i, ver, p_arch, build))
                     get_path = path.replace("/home/ftp/pub/", "")
                     url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path + "/" \
                             + i + "-" + ver + "-" + p_arch + "-" + build \
