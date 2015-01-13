@@ -5,8 +5,8 @@ import sys, os, subprocess, pickle, argparse, urllib2
 
 PKG_PATH = '/var/log/packages/'
 #FTP_URL = 'ftp://plamo.linet.gr.jp/pub/Plamo-5.x/'
-#FTP_URL = 'ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/'
 FTP_URL = 'ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/'
+#FTP_URL = 'ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/'
 
 def get_arch():
     arch = subprocess.check_output('uname -m'.split()).strip()
@@ -97,27 +97,26 @@ def main():
     replaces = ftp_pkgs['__replaces']
     rev_list = rev_replaces(replaces)
     check_pkgs = check_replaces(local_pkgs, replaces)
-    for i in local_pkgs.keys():
+    for i in check_pkgs.keys():
         try:
             (ver, p_arch, build, ext, path) = ftp_pkgs[i]
             chk = (ver, p_arch, build)
-            if local_pkgs[i] != chk:
-                (local_ver, local_arch, local_build) = local_pkgs[i]
+            if check_pkgs[i] != chk:
+                (local_ver, local_arch, local_build) = check_pkgs[i]
                 if rev_list.has_key(i):
                     pkgname = rev_list[i]
                 else:
                     pkgname = i
-                    print("local package:{}-{}-{}-{}".format(
-                            pkgname, local_ver, local_arch, local_build))
-                    print("new package:{}-{}-{}-{}".format(
-                            i, ver, p_arch, build))
-                    get_path = path.replace("/home/ftp/pub/Plamo-5.x/", "")
-                    url2 = FTP_URL + get_path + "/" + i + "-" + ver + "-" \
-                            + p_arch + "-" + build + "." + ext
-                    print(url2)
-                    print("")
-                    if param.download:
-                        download_pkg(url2)
+                print("local package:{}-{}-{}-{}".format(
+                        pkgname, local_ver, local_arch, local_build))
+                print("new package:{}-{}-{}-{}".format(i, ver, p_arch, build))
+                get_path = path.replace("/home/ftp/pub/Plamo-5.x/", "")
+                url2 = FTP_URL + get_path + "/" + i + "-" + ver + "-" \
+                        + p_arch + "-" + build + "." + ext
+                print(url2)
+                print("")
+                if param.download:
+                    download_pkg(url2)
         except KeyError:
             sys.stderr.write(
                     "package: {} doesn't exit in FTP tree.\n".format(i))
