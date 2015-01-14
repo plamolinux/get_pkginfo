@@ -2,6 +2,7 @@
 # -*- coding: euc-jp -*-
 
 import sys, os, subprocess, pickle, argparse, urllib2
+import ftplib, datetime, time
 
 PKG_PATH = '/var/log/packages/'
 #FTP_URL = 'ftp://plamo.linet.gr.jp/pub/Plamo-5.x/'
@@ -36,6 +37,16 @@ def download_pkg(url):
     else:
         with open(os.path.basename(url), "w") as local_file:
             local_file.write(f.read())
+
+def preserve_mtime(hname, pname, fname):
+    ftp = ftplib.FTP(hname)
+    ftp.login()
+    ftp.cwd(pname)
+    resp = ftp.sendcmd("MDTM %s" % fname)
+    ftp.quit()
+    dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
+    mtime = time.mktime((dt + datetime.timedelta(hours = 9)).timetuple())
+    os.utime(fname, (mtime, mtime))
 
 def get_args():
     parser = argparse.ArgumentParser(description =
@@ -128,6 +139,12 @@ def main():
                 print("")
                 if param.download:
                     download_pkg(url2)
+                    hname = FTP_URL.split("/")[2]
+                    pname = "/" + "/".join(FTP_URL.split("/")[3:-1]) \
+                            + "/" + "/".join(get_path.split("/"))
+                    fname = i + "-" + ver + "-" + p_arch + "-" \
+                            + build + "." + ext
+                    preserve_mtime(hname, pname, fname)
         except KeyError:
             sys.stderr.write(
                     "package: {} doesn't exit in FTP tree.\n".format(i))
