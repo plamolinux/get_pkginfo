@@ -26,42 +26,20 @@ def get_ftp_pkgs(arch):
     url = FTP_URL + "allpkgs_" + arch + ".pickle"
     return pickle.load(urllib2.urlopen(url))
 
-def download_pkg(url):
-    print("downloading: {}".format(url))
-    try:
-        f = urllib2.urlopen(url)
-    except urllib2.HTTPError, e:
-        print "HTTP Error:", e.code, url
-    except urllib2.URLError, e:
-        print "URL Error:", e.reason, url
-    else:
-        with open(os.path.basename(url), "w") as local_file:
-            local_file.write(f.read())
-
-def download_pkg_withdir(dirpath, url):
-    print("dirpath:{}, url:{}".format(dirpath, url))
-    try:
-        f = urllib2.urlopen(url)
-        print("downloading: {}".format(url))
-        if not os.path.isdir(dirpath):
-            os.makedirs(dirpath)
-        filepath = dirpath + "/" + os.path.basename(url)
-        with open(filepath, "wb") as local_file:
-            local_file.write(f.read())
-    except urllib2.HTTPError, e:
-        print "HTTP Error:", e.code, url
-    except urllib2.URLError, e:
-        print "URL Error:", e.reason, url
-
-def preserve_mtime(dirpath, hname, pname, fname):
+def download_pkg_withdir(dirpath, hname, pname, fname):
+    if not os.path.isdir(dirpath):
+        os.makedirs(dirpath)
+    os.chdir(dirpath)
+    print("downloading: {}".format("ftp://" + hname + pname + "/" + fname))
     ftp = ftplib.FTP(hname)
     ftp.login()
     ftp.cwd(pname)
+    ftp.retrbinary("RETR %s" % fname, open(fname, "w").write)
     resp = ftp.sendcmd("MDTM %s" % fname)
     ftp.quit()
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours = 9)).timetuple())
-    os.utime(dirpath + "/" + fname, (mtime, mtime))
+    os.utime(fname, (mtime, mtime))
 
 def get_args():
     parser = argparse.ArgumentParser(description =
@@ -165,12 +143,11 @@ def main():
                             subdir = t_path[-1]
                         else:
                             print("this shouldn't be happen")
-                        download_pkg_withdir(subdir, url2)
                         hname = "plamo.linet.gr.jp"
                         pname = "/pub" + "/" + "/".join(get_path.split("/"))
                         fname = i + "-" + ver + "-" + p_arch + "-" \
                                 + build + "." + ext
-                        preserve_mtime(subdir, hname, pname, fname)
+                        download_pkg_withdir(subdir, hname, pname, fname)
             except KeyError:
                 sys.stderr.write(
                         "package: {} doesn't exit in FTP tree.\n".format(i))
@@ -226,13 +203,10 @@ def main():
                         pkgname = basename + "-" + ver + "-" + arch \
                                 + "-" + build + "." + ext
                         get_path = path.replace("/home/ftp/pub/", "")
-                        url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path \
-                                + "/" + pkgname
                         dirpath = cat + "/" + subdir
-                        download_pkg_withdir(dirpath, url2)
                         hname = "plamo.linet.gr.jp"
                         pname = "/pub" + "/" + "/".join(get_path.split("/"))
-                        preserve_mtime(dirpath, hname, pname, pkgname)
+                        download_pkg_withdir(dirpath, hname, pname, pkgname)
             for jj in sorted(tmp_list):
                 if len(jj) == 3:
                     basename = jj[1]
@@ -243,13 +217,10 @@ def main():
                         pkgname = basename + "-" + ver + "-" + arch + "-" \
                                 + build + "." + ext
                         get_path = path.replace("/home/ftp/pub/", "")
-                        url2 = "ftp://plamo.linet.gr.jp/pub/" + get_path \
-                                + "/" + pkgname
                         dirpath = cat
-                        download_pkg_withdir(dirpath, url2)
                         hname = "plamo.linet.gr.jp"
                         pname = "/pub" + "/" + "/".join(get_path.split("/"))
-                        preserve_mtime(dirpath, hname, pname, pkgname)
+                        download_pkg_withdir(dirpath, hname, pname, pkgname)
 
 if __name__ == "__main__":
     main()
