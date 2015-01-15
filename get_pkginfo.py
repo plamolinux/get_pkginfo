@@ -1,13 +1,23 @@
 #!/usr/bin/python2
 # -*- coding: euc-jp -*-
 
-import sys, os, subprocess, pickle, argparse, urllib2
-import ftplib, datetime, time
+import argparse, subprocess, os, pickle, urllib2
+import ftplib, datetime, time, sys
 
 PKG_PATH = '/var/log/packages/'
 #FTP_URL = 'ftp://plamo.linet.gr.jp/pub/Plamo-5.x/'
 FTP_URL = 'ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/'
 #FTP_URL = 'ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/'
+
+def get_args():
+    parser = argparse.ArgumentParser(description =
+            'Plamo Linux update packages check and download')
+    parser.add_argument('-d', '--download',
+            action = 'store_true', help = 'download package(s)')
+    parser.add_argument('-b', '--blocklist',
+            action = 'store_true', help = 'ignore block list')
+    args = parser.parse_args()
+    return args
 
 def get_arch():
     arch = subprocess.check_output('uname -m'.split()).strip()
@@ -38,15 +48,13 @@ def download_pkg(hname, pname, fname):
     mtime = time.mktime((dt + datetime.timedelta(hours = 9)).timetuple())
     os.utime(fname, (mtime, mtime))
 
-def get_args():
-    parser = argparse.ArgumentParser(description =
-            'Plamo Linux update packages check and download')
-    parser.add_argument('-d', '--download',
-            action = 'store_true', help = 'download package(s)')
-    parser.add_argument('-b', '--blocklist',
-            action = 'store_true', help = 'ignore block list')
-    args = parser.parse_args()
-    return args
+def rev_replaces(replaces):
+    rev_list = {}
+    for i in replaces.keys():
+        new_pkgs = replaces[i][1]
+        for j in new_pkgs:
+            rev_list[j] = i
+    return rev_list
 
 def check_replaces(orig_list, replaces):
     replaced = []
@@ -59,14 +67,6 @@ def check_replaces(orig_list, replaces):
                     orig_list[rep] = (ver, arch, build)
                     replaced.append(rep)
     return orig_list, replaced
-
-def rev_replaces(replaces):
-    rev_list = {}
-    for i in replaces.keys():
-        new_pkgs = replaces[i][1]
-        for j in new_pkgs:
-            rev_list[j] = i
-    return rev_list
 
 def main():
     param = get_args()
@@ -136,7 +136,7 @@ def main():
                     download_pkg(hname, pname, fname)
         except KeyError:
             sys.stderr.write(
-                    "package: {} doesn't exit in FTP tree.\n".format(i))
+                    "package: {} doesn't exist in FTP tree.\n".format(i))
             sys.stderr.write("\n")
 
 if __name__ == "__main__":
