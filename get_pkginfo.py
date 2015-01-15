@@ -16,6 +16,8 @@ def get_args():
             action = 'store_true', help = 'download package(s)')
     parser.add_argument('-b', '--blocklist',
             action = 'store_true', help = 'ignore block list')
+    parser.add_argument('-l', '--localblock',
+            help = 'set local blocklist filename')
     args = parser.parse_args()
     return args
 
@@ -68,6 +70,15 @@ def check_replaces(orig_list, replaces):
                     replaced.append(rep)
     return orig_list, replaced
 
+def get_localblock(blockfile):
+    new_list = []
+    with open(blockfile, 'r') as f:
+        lbs = f.readlines()
+    for i in lbs:
+        if len(i.strip()) > 0:
+            new_list.append(i.strip())
+    return new_list
+
 def main():
     param = get_args()
     '''
@@ -78,6 +89,24 @@ def main():
     my_arch = get_arch()
     local_pkgs = get_localpkgs()
     ftp_pkgs = get_ftp_pkgs(my_arch)
+    '''
+    --localblock オプションで指定したファイルから，表示対象外とするファ
+    イルを読み込み，blockpkgs に追加する．
+    '''
+    if param.localblock:
+        if os.path.exists(param.localblock):
+            new_block = []
+            local_block = get_localblock(param.localblock)
+            orig_block = ftp_pkgs['__blockpkgs']
+            for i in orig_block:
+                new_block.append(i)
+            for i in local_block:
+                new_block.append(i)
+            ftp_pkgs['__blockpkgs'] = (new_block)
+            #print("__blockpkgs:{}".format(ftp_pkgs['__blockpkgs']))
+        else:
+            print("localblock file: {} doesn't exist. "
+                    "Ignore this option".format(param.localblock))
     '''
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs['__blockpkgs'])は表示しない(= local_pkgs リストから除く)
