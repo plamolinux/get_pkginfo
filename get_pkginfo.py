@@ -26,22 +26,12 @@ def get_ftp_pkgs(arch):
     url = FTP_URL + "allpkgs_" + arch + ".pickle"
     return pickle.load(urllib2.urlopen(url))
 
-def download_pkg(url):
-    print("downloading: {}".format(url))
-    try:
-        f = urllib2.urlopen(url)
-    except urllib2.HTTPError, e:
-        print "HTTP Error:", e.code, url
-    except urllib2.URLError, e:
-        print "URL Error:", e.reason, url
-    else:
-        with open(os.path.basename(url), "w") as local_file:
-            local_file.write(f.read())
-
-def preserve_mtime(hname, pname, fname):
+def download_pkg(hname, pname, fname):
+    print("downloading: {}".format("ftp://" + hname + pname + "/" + fname))
     ftp = ftplib.FTP(hname)
     ftp.login()
     ftp.cwd(pname)
+    ftp.retrbinary("RETR %s" % fname, open(fname, "w").write)
     resp = ftp.sendcmd("MDTM %s" % fname)
     ftp.quit()
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
@@ -138,13 +128,12 @@ def main():
                 print(url2)
                 print("")
                 if param.download:
-                    download_pkg(url2)
                     hname = FTP_URL.split("/")[2]
                     pname = "/" + "/".join(FTP_URL.split("/")[3:-1]) \
                             + "/" + "/".join(get_path.split("/"))
                     fname = i + "-" + ver + "-" + p_arch + "-" \
                             + build + "." + ext
-                    preserve_mtime(hname, pname, fname)
+                    download_pkg(hname, pname, fname)
         except KeyError:
             sys.stderr.write(
                     "package: {} doesn't exit in FTP tree.\n".format(i))
