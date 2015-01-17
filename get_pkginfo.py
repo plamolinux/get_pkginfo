@@ -48,7 +48,22 @@ def download_pkg_withdir(dirpath, hname, pname, fname):
     ftp = ftplib.FTP(hname)
     ftp.login()
     ftp.cwd(pname)
-    ftp.retrbinary("RETR %s" % fname, open(fname, "w").write)
+    count = [0]
+    ftp.sendcmd("TYPE I")
+    fsize = ftp.size(fname)
+    sys.stdout.write("[ %10d / %10d ]" % (0, fsize))
+    sys.stdout.flush()
+    with open(fname, "w") as f:
+        def callback(block):
+            f.write(block)
+            if count[0] < fsize:
+                count[0] += 1024
+            if count[0] > fsize:
+                count[0] = fsize
+            sys.stdout.write("\r[ %10d / %10d ]" % (count[0], fsize))
+            sys.stdout.flush()
+        ftp.retrbinary("RETR %s" % fname, callback, blocksize = 1024)
+    sys.stdout.write("\n")
     resp = ftp.sendcmd("MDTM %s" % fname)
     ftp.quit()
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
