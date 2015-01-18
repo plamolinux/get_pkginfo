@@ -94,6 +94,58 @@ def get_localblock(blockfile):
             new_list.append(i.strip())
     return new_list
 
+def make_catlist(remote_pkgs):
+    '''
+    00_base から 11_mate までの各カテゴリーに含まれるパッケージの
+    basename を
+    catlist['02_x11'] = ['IPAexfont', 'IPAfont', 'MesaLib', ...]
+    のような辞書型のデータ catlist に収める処理
+    '''
+    catlist = {}
+    for i in remote_pkgs:
+        if i != '__blockpkgs' and i != '__replaces':
+            try:
+                (ver, p_arch, build, ext, path) = remote_pkgs[i]
+            except:
+                print("remote key:{} have illegal data:{} ".format(
+                        i, remote_pkgs[i]))
+            dt = path.split("/")
+            if dt[-1].find(".txz") > 0:
+                cat = dt[-2]
+            else:
+                cat = dt[-1]
+            if catlist.has_key(cat):
+                tmp_list = catlist[cat]
+                tmp_list.append(i)
+                catlist[cat] = tmp_list
+            else:
+                tmp_list = []
+                tmp_list.append(i)
+                catlist[cat] = tmp_list
+    return catlist
+
+def get_local_category(local_pkgs):
+    '''
+    各カテゴリの代表的なパッケージのリスト．これらのパッケージがインス
+    トール済みならば，そのカテゴリは選択されていたと考える．
+    '''
+    reps = {'01_minimum':'gcc',
+            '02_x11':'xorg_server',
+            '03_xclassics':'kterm',
+            '04_xapps':'firefox',
+            '05_ext':'mplayer',
+            '06_xfce':'xfwm4',
+            '07_kde':'kde_baseapps',
+            '08_tex':'ptexlive',
+            '09_kernel':'kernelsrc',
+            '10_lof':'libreoffice_base',
+            '11_mate':'mate_desktop'}
+    local_category = ['00_base']
+    for i in reps.keys():
+        if reps[i] in local_pkgs:
+            local_category.append(i)
+    return sorted(local_category)
+
 def main():
     param = get_args()
     '''
@@ -129,6 +181,7 @@ def main():
     if not param.blocklist:
         blocklist = ftp_pkgs['__blockpkgs']
         for bp in blocklist:
+            del(ftp_pkgs[bp])
             del(local_pkgs[bp])
     '''
     改名，分割，集約したパッケージを追跡する処理．
@@ -182,6 +235,40 @@ def main():
             sys.stderr.write(
                     "package: {} doesn't exist in FTP tree.\n".format(i))
             sys.stderr.write("\n")
+    '''
+    新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
+    上にあるパッケージを，カテゴリをキーにして，そのカテゴリーに属する
+    パッケージのリストを value に持った辞書型データ
+    (cat_list['01_minimum'] =
+            ['FDclone', 'alsa_lib', 'alsa_plugins', 'alsa_utils', ...])
+    intalled_category[] は，インストール時に選択したカテゴリのリスト．
+    (['00_base', '01_minimum', '02_x11', '04_xapps', ...])
+    installed_category[] に従って，cat_list{} にあるそのカテゴリのパッ
+    ケージを調べ，ローカルにインストールされていないものがあれば表示す
+    る．
+    '''
+    cat_list = make_catlist(ftp_pkgs)
+    installed_category = get_local_category(local_pkgs)
+    for i in installed_category:
+        for j in cat_list[i]:
+            if j not in local_pkgs:
+                (ver, p_arch, build, ext, path) = ftp_pkgs[j]
+                pkgname = j + "-" + ver + "-" + p_arch + "-" + build \
+                        + "." + ext
+                print("** {} should be a new package in {} category".format(
+                        pkgname, i))
+                get_path = path.replace("/home/ftp/pub/Plamo-5.x/", "")
+                url2 = FTP_URL + get_path + "/" + j + "-" + ver + "-" \
+                        + p_arch + "-" + build + "." + ext
+                print(url2)
+                if param.download:
+                    hname = FTP_URL.split("/")[2]
+                    pname = "/" + "/".join(FTP_URL.split("/")[3:-1]) \
+                            + "/" + "/".join(get_path.split("/"))
+                    fname = j + "-" + ver + "-" + p_arch + "-" \
+                            + build + "." + ext
+                    download_pkg(hname, pname, fname)
+                print("")
 
 if __name__ == "__main__":
     main()
