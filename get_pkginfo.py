@@ -10,7 +10,7 @@ FTP_URL = "ftp://plamo.linet.gr.jp/pub/Plamo-5.x/"
 #FTP_URL = "ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/"
 
 def get_args():
-    parser = argparse.ArgumentParser(description =
+    parser = argparse.ArgumentParser(description=
             "Plamo Linux update packages check and download")
     parser.add_argument("-d", "--download",
             action="store_true", help="download package(s)")
@@ -45,7 +45,7 @@ def get_localblock(blockfile):
     with open(blockfile, "r") as f:
         lbs = f.readlines()
     for i in lbs:
-        if len(i.strip()) > 0:
+        if len(i.strip()):
             new_list.append(i.strip())
     return new_list
 
@@ -111,11 +111,12 @@ def make_catlist(remote_pkgs):
             except:
                 print("remote key: {} have illegal data: {}"
                         .format(i, remote_pkgs[i]))
-            dt = path.split("/")
-            cat = dt[-2] if dt[-1].find(".txz") > 0 else dt[-1]
-            tmp_list = catlist[cat] if catlist.has_key(cat) else []
-            tmp_list.append(i)
-            catlist[cat] = tmp_list
+            else:
+                dt = path.split("/")
+                cat = dt[-2] if dt[-1].find(".txz") > 0 else dt[-1]
+                tmp_list = catlist[cat] if cat in catlist else []
+                tmp_list.append(i)
+                catlist[cat] = tmp_list
     return catlist
 
 def get_local_category(local_pkgs):
@@ -157,13 +158,11 @@ def main():
     if param.localblock:
         if os.path.exists(param.localblock):
             new_block = []
-            local_block = get_localblock(param.localblock)
-            orig_block = ftp_pkgs["__blockpkgs"]
-            for i in orig_block:
+            for i in ftp_pkgs["__blockpkgs"]:
                 new_block.append(i)
-            for i in local_block:
+            for i in get_localblock(param.localblock):
                 new_block.append(i)
-            ftp_pkgs["__blockpkgs"] = (new_block)
+            ftp_pkgs["__blockpkgs"] = new_block
         else:
             print("localblock file: {} doesn't exist.  "
                     "Ignore this option.".format(param.localblock))
@@ -172,10 +171,9 @@ def main():
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
     """
     if not param.blocklist and not param.reverse:
-        blocklist = ftp_pkgs["__blockpkgs"]
-        for bp in blocklist:
-            del(ftp_pkgs[bp])
+        for bp in ftp_pkgs["__blockpkgs"]:
             del(local_pkgs[bp])
+            del(ftp_pkgs[bp])
     """
     改名したパッケージを追跡するための処理．ftp_pkgs["__replaces"] には，
     該当するパッケージが replace_list["old_name"] = "new_name" という形
@@ -192,6 +190,10 @@ def main():
         for i in sorted(check_pkgs.keys()):
             try:
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
+            except KeyError:
+                sys.stderr.write("package: {} doesn't exist in FTP tree.\n\n"
+                        .format(i))
+            else:
                 chk = (ver, p_arch, build)
                 if check_pkgs[i] != chk:
                     (local_ver, local_arch, local_build) = check_pkgs[i]
@@ -222,10 +224,6 @@ def main():
                             print("This shouldn't be happen.")
                         download_pkg_withdir(subdir, url2)
                     print("")
-            except KeyError:
-                sys.stderr.write("package: {} doesn't exist in FTP tree.\n"
-                        .format(i))
-                sys.stderr.write("\n")
         """
         新しく追加されたパッケージをチェックする．cat_list{} は，FTP サ
         ーバ上にあるパッケージを，カテゴリをキーにして，そのカテゴリー
@@ -247,7 +245,7 @@ def main():
                     (ver, p_arch, build, ext, path) = ftp_pkgs[j]
                     pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch,
                             build, ext)
-                    print("** {} should be a new package in {} category"
+                    print("** {} should be a new package in {} category."
                             .format(pkgname, i))
                     url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
                     print("URL: {}".format(url2))
