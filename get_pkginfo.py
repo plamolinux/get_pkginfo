@@ -2,7 +2,7 @@
 # -*- coding: euc-jp -*-
 
 import argparse, subprocess, os, pickle, urllib2
-import ftplib, datetime, time, sys
+import ftplib, sys, datetime, time
 
 PKG_PATH = "/var/log/packages/"
 #FTP_URL = "ftp://plamo.linet.gr.jp/pub/Plamo-5.x/"
@@ -18,8 +18,7 @@ def get_args():
             action="store_true", help="ignore block list")
     parser.add_argument("-l", "--localblock",
             help="set local blocklist filename")
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def get_arch():
     arch = subprocess.check_output("uname -m".split()).strip()
