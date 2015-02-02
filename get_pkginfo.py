@@ -2,7 +2,7 @@
 # -*- coding: euc-jp -*-
 
 import argparse, subprocess, os, pickle, urllib2
-import ftplib, datetime, time, sys
+import ftplib, sys, datetime, time
 
 PKG_PATH = "/var/log/packages/"
 FTP_URL = "ftp://plamo.linet.gr.jp/pub/Plamo-5.x/"
@@ -20,8 +20,7 @@ def get_args():
             help="set local blocklist filename")
     parser.add_argument("-r", "--reverse",
             action="store_true", help="find un-installed package(s)")
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def get_arch():
     arch = subprocess.check_output("uname -m".split()).strip()
@@ -186,102 +185,29 @@ def main():
     replaces = ftp_pkgs["__replaces"]
     rev_list = rev_replaces(replaces)
     check_pkgs = check_replaces(local_pkgs, replaces)
-    if not param.reverse:
-        for i in sorted(check_pkgs.keys()):
-            try:
-                (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-            except KeyError:
-                sys.stderr.write("package: {} doesn't exist in FTP tree.\n\n"
-                        .format(i))
-            else:
-                chk = (ver, p_arch, build)
-                if check_pkgs[i] != chk:
-                    (local_ver, local_arch, local_build) = check_pkgs[i]
-                    if i in rev_list:
-                        print("** local package: {}-{}-{}-{} was renamed to"
-                                .format(rev_list[i], local_ver, local_arch,
-                                local_build))
-                        print("** new   package: {}-{}-{}-{}"
-                                .format(i, ver, p_arch, build))
-                        print("** You should manually remove old package "
-                                "(# removepkg {}) to update new one."
-                                .format(rev_list[i]))
-                    else:
-                        print("local package: {}-{}-{}-{}"
-                                .format(i, local_ver, local_arch, local_build))
-                        print("new   package: {}-{}-{}-{}"
-                                .format(i, ver, p_arch, build))
-                    url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path, i,
-                            ver, p_arch, build, ext)
-                    print("URL: {}".format(url2))
-                    if param.download:
-                        t_path = path.split("/")
-                        if len(t_path) == 5:
-                            subdir = t_path[-2] + "/" + t_path[-1]
-                        elif len(t_path) == 4:
-                            subdir = t_path[-1]
-                        else:
-                            print("This shouldn't be happen.")
-                        download_pkg_withdir(subdir, url2)
-                    print("")
-        """
-        新しく追加されたパッケージをチェックする．cat_list{} は，FTP サ
-        ーバ上にあるパッケージを，カテゴリをキーにして，そのカテゴリー
-        に属するパッケージのリストを value に持った辞書型データ
-        (cat_list["01_minimum"] =
-                ["FDclone", "alsa_lib", "alsa_plugins", "alsa_utils", ...])
-        intalled_category[] は，インストール時に選択したカテゴリのリス
-        ト．
-        (["00_base", "01_minimum", "02_x11", "04_xapps", ...])
-        installed_category[] に従って，cat_list{} にあるそのカテゴリの
-        パッケージを調べ，ローカルにインストールされていないものがあれ
-        ば表示する．
-        """
-        cat_list = make_catlist(ftp_pkgs)
-        installed_category = get_local_category(local_pkgs)
-        for i in installed_category:
-            for j in sorted(cat_list[i]):
-                if j not in local_pkgs:
-                    (ver, p_arch, build, ext, path) = ftp_pkgs[j]
-                    pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch,
-                            build, ext)
-                    print("** {} should be a new package in {} category."
-                            .format(pkgname, i))
-                    url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
-                    print("URL: {}".format(url2))
-                    if param.download:
-                        t_path = path.split("/")
-                        if len(t_path) == 5:
-                            subdir = t_path[-2] + "/" + t_path[-1]
-                        elif len(t_path) == 4:
-                            subdir = t_path[-1]
-                        else:
-                            print("This shouldn't be happen.")
-                        download_pkg_withdir(subdir, url2)
-                    print("")
-    else: # reverse lookup
+    if param.reverse:
         not_installed = []
         cat_list = []
         for i in ftp_pkgs.keys():
             if i == "__replaces" or i == "__blockpkgs":
                 continue
             if not local_pkgs.has_key(i):
-                    #print(i, ftp_pkgs[i])
-                    (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-                    path_list = path.split("/")
-                    if len(path_list) == 9:
-                        if path_list[-2] not in cat_list:
-                            cat_list.append(path_list[-2])
-                        not_installed.append((path_list[-2], path_list[-1],
-                                i, ftp_pkgs[i]))
-                    elif len(path_list) == 8:
-                        if path_list[-1] not in cat_list:
-                            cat_list.append(path_list[-1])
-                        not_installed.append((path_list[-1], i, ftp_pkgs[i]))
-                    else:
-                        print("This shouldn't be happen.  Aborted.")
-                        print("i: {} pkg: {}".format(i, ftp_pkgs[i]))
-                        sys.exit()
+                #print(i, ftp_pkgs[i])
+                (ver, p_arch, build, ext, path) = ftp_pkgs[i]
+                path_list = path.split("/")
+                if len(path_list) == 9:
+                    if path_list[-2] not in cat_list:
+                        cat_list.append(path_list[-2])
+                    not_installed.append((path_list[-2], path_list[-1],
+                            i, ftp_pkgs[i]))
+                elif len(path_list) == 8:
+                    if path_list[-1] not in cat_list:
+                        cat_list.append(path_list[-1])
+                    not_installed.append((path_list[-1], i, ftp_pkgs[i]))
+                else:
+                    print("This shouldn't be happen.  Aborted.")
+                    print("i: {} pkg: {}".format(i, ftp_pkgs[i]))
+                    return
         #print(not_installed)
         print("un-selected packages:")
         """
@@ -322,6 +248,77 @@ def main():
                         url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
                                 basename, ver, arch, build, ext)
                         download_pkg_withdir(dirpath, url2)
+        return
+    for i in sorted(check_pkgs.keys()):
+        try:
+            (ver, p_arch, build, ext, path) = ftp_pkgs[i]
+        except KeyError:
+            sys.stderr.write("package: {} doesn't exist in FTP tree.\n\n"
+                    .format(i))
+        else:
+            chk = (ver, p_arch, build)
+            if check_pkgs[i] != chk:
+                (local_ver, local_arch, local_build) = check_pkgs[i]
+                if i in rev_list:
+                    print("** local package: {}-{}-{}-{} was renamed to"
+                            .format(rev_list[i], local_ver, local_arch,
+                            local_build))
+                    print("** new   package: {}-{}-{}-{}"
+                            .format(i, ver, p_arch, build))
+                    print("** You should manually remove old package "
+                            "(# removepkg {}) to update new one."
+                            .format(rev_list[i]))
+                else:
+                    print("local package: {}-{}-{}-{}"
+                            .format(i, local_ver, local_arch, local_build))
+                    print("new   package: {}-{}-{}-{}"
+                            .format(i, ver, p_arch, build))
+                url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path, i,
+                        ver, p_arch, build, ext)
+                print("URL: {}".format(url2))
+                if param.download:
+                    t_path = path.split("/")
+                    if len(t_path) == 5:
+                        subdir = t_path[-2] + "/" + t_path[-1]
+                    elif len(t_path) == 4:
+                        subdir = t_path[-1]
+                    else:
+                        print("This shouldn't be happen.")
+                    download_pkg_withdir(subdir, url2)
+                print("")
+    """
+    新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
+    上にあるパッケージを，カテゴリをキーにして，そのカテゴリーに属する
+    パッケージのリストを value に持った辞書型データ
+    (cat_list["01_minimum"] =
+            ["FDclone", "alsa_lib", "alsa_plugins", "alsa_utils", ...])
+    intalled_category[] は，インストール時に選択したカテゴリのリスト．
+    (["00_base", "01_minimum", "02_x11", "04_xapps", ...])
+    installed_category[] に従って，cat_list{} にあるそのカテゴリのパッ
+    ケージを調べ，ローカルにインストールされていないものがあれば表示す
+    る．
+    """
+    cat_list = make_catlist(ftp_pkgs)
+    installed_category = get_local_category(local_pkgs)
+    for i in installed_category:
+        for j in sorted(cat_list[i]):
+            if j not in local_pkgs:
+                (ver, p_arch, build, ext, path) = ftp_pkgs[j]
+                pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch, build, ext)
+                print("** {} should be a new package in {} category."
+                        .format(pkgname, i))
+                url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
+                print("URL: {}".format(url2))
+                if param.download:
+                    t_path = path.split("/")
+                    if len(t_path) == 5:
+                        subdir = t_path[-2] + "/" + t_path[-1]
+                    elif len(t_path) == 4:
+                        subdir = t_path[-1]
+                    else:
+                        print("This shouldn't be happen.")
+                    download_pkg_withdir(subdir, url2)
+                print("")
 
 if __name__ == "__main__":
     main()
