@@ -62,14 +62,15 @@ def check_replaces(orig_list, replaces):
             orig_list[replaces[ck]] = (ver, arch, build)
     return orig_list
 
-def download_pkg_withdir(dirpath, url):
+def download_pkg_withdir(url, subdir):
     hname = url.split("/")[2]
     pname = "/".join(url.split("/")[3:-1])
     fname = url.split("/")[-1]
     print("downloading: {}".format(fname))
-    if not os.path.isdir(dirpath):
-        os.makedirs(dirpath)
-    os.chdir(dirpath)
+    if not os.path.isdir(subdir):
+        os.makedirs(subdir)
+    cwd = os.getcwd()
+    os.chdir(subdir)
     ftp = ftplib.FTP(hname)
     ftp.login()
     ftp.cwd(pname)
@@ -94,6 +95,7 @@ def download_pkg_withdir(dirpath, url):
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
     os.utime(fname, (mtime, mtime))
+    os.chdir(cwd)
 
 def make_catlist(remote_pkgs):
     """
@@ -233,10 +235,9 @@ def main():
                     print("\t{}/{}-{}-{}-{}.{}"
                             .format(subdir, basename, ver, arch, build, ext))
                     if param.download:
-                        dirpath = cat + "/" + subdir
                         url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
                                 basename, ver, arch, build, ext)
-                        download_pkg_withdir(dirpath, url2)
+                        download_pkg_withdir(url2, cat + "/" + subdir)
             for jj in sorted(tmp_list):
                 if len(jj) == 3:
                     basename = jj[1]
@@ -244,10 +245,9 @@ def main():
                     print("\t{}-{}-{}-{}.{}"
                             .format(basename, ver, arch, build, ext))
                     if param.download:
-                        dirpath = cat
                         url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
                                 basename, ver, arch, build, ext)
-                        download_pkg_withdir(dirpath, url2)
+                        download_pkg_withdir(url2, cat)
         return
     for i in sorted(check_pkgs.keys()):
         try:
@@ -277,14 +277,7 @@ def main():
                         ver, p_arch, build, ext)
                 print("URL: {}".format(url2))
                 if param.download:
-                    t_path = path.split("/")
-                    if len(t_path) == 5:
-                        subdir = t_path[-2] + "/" + t_path[-1]
-                    elif len(t_path) == 4:
-                        subdir = t_path[-1]
-                    else:
-                        print("This shouldn't be happen.")
-                    download_pkg_withdir(subdir, url2)
+                    download_pkg_withdir(url2, "/".join(path.split("/")[2:]))
                 print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
@@ -310,14 +303,7 @@ def main():
                 url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
                 print("URL: {}".format(url2))
                 if param.download:
-                    t_path = path.split("/")
-                    if len(t_path) == 5:
-                        subdir = t_path[-2] + "/" + t_path[-1]
-                    elif len(t_path) == 4:
-                        subdir = t_path[-1]
-                    else:
-                        print("This shouldn't be happen.")
-                    download_pkg_withdir(subdir, url2)
+                    download_pkg_withdir(url2, "/".join(path.split("/")[2:]))
                 print("")
 
 if __name__ == "__main__":
