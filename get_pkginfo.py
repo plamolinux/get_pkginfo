@@ -10,16 +10,19 @@ FTP_URL = "ftp://plamo.linet.gr.jp/pub/Plamo-5.x/"
 #FTP_URL = "ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/"
 
 def get_args():
-    parser = argparse.ArgumentParser(description=
-            "Plamo Linux update packages check and download")
-    parser.add_argument("-d", "--download",
-            action="store_true", help="download package(s)")
-    parser.add_argument("-b", "--blocklist",
-            action="store_true", help="ignore block list")
+    parser = argparse.ArgumentParser(description="Plamo Linux update "
+            "packages check and download")
+    mexgrp = parser.add_mutually_exclusive_group()
+    mexgrp.add_argument("-d", "--download", action="store_true",
+            help="download package(s)")
+    mexgrp.add_argument("-s", "--dlsubdir", action="store_true",
+            help="download package(s) with subdir(s)")
+    parser.add_argument("-b", "--blocklist", action="store_true",
+            help="ignore block list")
     parser.add_argument("-l", "--localblock",
             help="set local blocklist filename")
-    parser.add_argument("-r", "--reverse",
-            action="store_true", help="find un-installed package(s)")
+    parser.add_argument("-r", "--reverse", action="store_true",
+            help="find un-installed package(s)")
     return parser.parse_args()
 
 def get_arch():
@@ -62,15 +65,16 @@ def check_replaces(orig_list, replaces):
             orig_list[replaces[ck]] = (ver, arch, build)
     return orig_list
 
-def download_pkg_withdir(url, subdir):
+def download_pkg(url, param, subdir):
     hname = url.split("/")[2]
     pname = "/".join(url.split("/")[3:-1])
     fname = url.split("/")[-1]
     print("downloading: {}".format(fname))
-    if not os.path.isdir(subdir):
-        os.makedirs(subdir)
-    cwd = os.getcwd()
-    os.chdir(subdir)
+    if param.dlsubdir:
+        if not os.path.isdir(subdir):
+            os.makedirs(subdir)
+        cwd = os.getcwd()
+        os.chdir(subdir)
     ftp = ftplib.FTP(hname)
     ftp.login()
     ftp.cwd(pname)
@@ -95,7 +99,8 @@ def download_pkg_withdir(url, subdir):
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
     os.utime(fname, (mtime, mtime))
-    os.chdir(cwd)
+    if param.dlsubdir:
+        os.chdir(cwd)
 
 def make_catlist(remote_pkgs):
     """
@@ -106,7 +111,7 @@ def make_catlist(remote_pkgs):
     """
     catlist = {}
     for i in remote_pkgs:
-        if i != "__blockpkgs" and i != "__replaces":
+        if i not in ["__blockpkgs", "__replaces"]:
             try:
                 (ver, p_arch, build, ext, path) = remote_pkgs[i]
             except:
@@ -171,7 +176,7 @@ def main():
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
     """
-    if not param.blocklist and not param.reverse:
+    if not (param.blocklist or param.reverse):
         for bp in ftp_pkgs["__blockpkgs"]:
             del(local_pkgs[bp])
             del(ftp_pkgs[bp])
@@ -191,7 +196,7 @@ def main():
         not_installed = []
         cat_list = []
         for i in ftp_pkgs.keys():
-            if i == "__replaces" or i == "__blockpkgs":
+            if i in ["__blockpkgs", "__replaces"]:
                 continue
             if not local_pkgs.has_key(i):
                 #print(i, ftp_pkgs[i])
@@ -234,20 +239,20 @@ def main():
                     (ver, arch, build, ext, path) = jj[3]
                     print("\t{}/{}-{}-{}-{}.{}"
                             .format(subdir, basename, ver, arch, build, ext))
-                    if param.download:
+                    if param.download or param.dlsubdir:
                         url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
                                 basename, ver, arch, build, ext)
-                        download_pkg_withdir(url2, cat + "/" + subdir)
+                        download_pkg(url2, param, cat + "/" + subdir)
             for jj in sorted(tmp_list):
                 if len(jj) == 3:
                     basename = jj[1]
                     (ver, arch, build, ext, path) = jj[2]
                     print("\t{}-{}-{}-{}.{}"
                             .format(basename, ver, arch, build, ext))
-                    if param.download:
+                    if param.download or param.dlsubdir:
                         url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
                                 basename, ver, arch, build, ext)
-                        download_pkg_withdir(url2, cat)
+                        download_pkg(url2, param, cat)
         return
     for i in sorted(check_pkgs.keys()):
         try:
@@ -276,8 +281,8 @@ def main():
                 url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path, i,
                         ver, p_arch, build, ext)
                 print("URL: {}".format(url2))
-                if param.download:
-                    download_pkg_withdir(url2, "/".join(path.split("/")[2:]))
+                if param.download or param.dlsubdir:
+                    download_pkg(url2, param, "/".join(path.split("/")[2:]))
                 print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
@@ -302,8 +307,8 @@ def main():
                         .format(pkgname, i))
                 url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
                 print("URL: {}".format(url2))
-                if param.download:
-                    download_pkg_withdir(url2, "/".join(path.split("/")[2:]))
+                if param.download or param.dlsubdir:
+                    download_pkg(url2, param, "/".join(path.split("/")[2:]))
                 print("")
 
 if __name__ == "__main__":
