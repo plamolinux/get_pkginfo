@@ -10,12 +10,15 @@ FTP_URL = "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/"
 #FTP_URL = "ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/"
 
 def get_args():
-    parser = argparse.ArgumentParser(description=
-            "Plamo Linux update packages check and download")
-    parser.add_argument("-d", "--download",
-            action="store_true", help="download package(s)")
-    parser.add_argument("-b", "--blocklist",
-            action="store_true", help="ignore block list")
+    parser = argparse.ArgumentParser(description="Plamo Linux update "
+            "packages check and download")
+    mexgrp = parser.add_mutually_exclusive_group()
+    mexgrp.add_argument("-d", "--download", action="store_true",
+            help="download package(s)")
+    mexgrp.add_argument("-s", "--dlsubdir", action="store_true",
+            help="download package(s) with subdir(s)")
+    parser.add_argument("-b", "--blocklist", action="store_true",
+            help="ignore block list")
     parser.add_argument("-l", "--localblock",
             help="set local blocklist filename")
     return parser.parse_args()
@@ -60,11 +63,16 @@ def check_replaces(orig_list, replaces):
             orig_list[replaces[ck]] = (ver, arch, build)
     return orig_list
 
-def download_pkg(url):
+def download_pkg(url, param, subdir):
     hname = url.split("/")[2]
     pname = "/".join(url.split("/")[3:-1])
     fname = url.split("/")[-1]
     print("downloading: {}".format(fname))
+    if param.dlsubdir:
+        if not os.path.isdir(subdir):
+            os.makedirs(subdir)
+        cwd = os.getcwd()
+        os.chdir(subdir)
     ftp = ftplib.FTP(hname)
     ftp.login()
     ftp.cwd(pname)
@@ -89,6 +97,8 @@ def download_pkg(url):
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
     os.utime(fname, (mtime, mtime))
+    if param.dlsubdir:
+        os.chdir(cwd)
 
 def make_catlist(remote_pkgs):
     """
@@ -99,7 +109,7 @@ def make_catlist(remote_pkgs):
     """
     catlist = {}
     for i in remote_pkgs:
-        if i != "__blockpkgs" and i != "__replaces":
+        if i not in ["__blockpkgs", "__replaces"]:
             try:
                 (ver, p_arch, build, ext, path) = remote_pkgs[i]
             except:
@@ -207,8 +217,8 @@ def main():
                 url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path, i,
                         ver, p_arch, build, ext)
                 print("URL: {}".format(url2))
-                if param.download:
-                    download_pkg(url2)
+                if param.download or param.dlsubdir:
+                    download_pkg(url2, param, "/".join(path.split("/")[2:]))
                 print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
@@ -233,8 +243,8 @@ def main():
                         .format(pkgname, i))
                 url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
                 print("URL: {}".format(url2))
-                if param.download:
-                    download_pkg(url2)
+                if param.download or param.dlsubdir:
+                    download_pkg(url2, param, "/".join(path.split("/")[2:]))
                 print("")
 
 if __name__ == "__main__":
