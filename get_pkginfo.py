@@ -41,9 +41,9 @@ def get_ftp_pkgs(arch):
     return pickle.load(urllib2.urlopen(url))
 
 def get_localblock(blockfile):
-    new_list = []
     with open(blockfile, "r") as f:
         lbs = f.readlines()
+    new_list = []
     for i in lbs:
         if len(i.strip()):
             new_list.append(i.strip())
@@ -176,8 +176,10 @@ def main():
     """
     if not param.blocklist:
         for bp in ftp_pkgs["__blockpkgs"]:
-            del(local_pkgs[bp])
-            del(ftp_pkgs[bp])
+            if bp in local_pkgs:
+                del(local_pkgs[bp])
+            if bp in ftp_pkgs:
+                del(ftp_pkgs[bp])
     """
     改名したパッケージを追跡するための処理．ftp_pkgs["__replaces"] には，
     該当するパッケージが replace_list["old_name"] = "new_name" という形
