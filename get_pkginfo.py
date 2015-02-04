@@ -195,29 +195,17 @@ def main():
     rev_list = rev_replaces(replaces)
     check_pkgs = check_replaces(local_pkgs, replaces)
     if param.reverse:
-        not_installed = []
         cat_list = []
+        not_installed = []
         for i in ftp_pkgs.keys():
             if i in ["__blockpkgs", "__replaces"]:
                 continue
             if not local_pkgs.has_key(i):
-                #print(i, ftp_pkgs[i])
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-                path_list = path.split("/")
-                if len(path_list) == 9:
-                    if path_list[-2] not in cat_list:
-                        cat_list.append(path_list[-2])
-                    not_installed.append((path_list[-2], path_list[-1],
-                            i, ftp_pkgs[i]))
-                elif len(path_list) == 8:
-                    if path_list[-1] not in cat_list:
-                        cat_list.append(path_list[-1])
-                    not_installed.append((path_list[-1], i, ftp_pkgs[i]))
-                else:
-                    print("This shouldn't be happen.  Aborted.")
-                    print("i: {} pkg: {}".format(i, ftp_pkgs[i]))
-                    return
-        #print(not_installed)
+                path_list = path.split("/")[2:]
+                if path_list[0] not in cat_list:
+                    cat_list.append(path_list[0])
+                not_installed.append((path_list, i, ftp_pkgs[i]))
         print("un-selected packages:")
         """
         カテゴリー別に表示するために，該当するカテゴリーのパッケージを
@@ -226,29 +214,28 @@ def main():
         for cat in sorted(cat_list):
             print("category: {}".format(cat))
             tmp_list = []
-            for j in not_installed:
-                if j[0] == cat :
-                    tmp_list.append(j)
+            for i in not_installed:
+                if i[0][0] == cat:
+                    tmp_list.append(i)
             """
-            tmp_list[] 中にはサブカテゴリも含まれるので，それらを再度ソートし，
-            サブカテゴリのあるものを先に表示する．
+            tmp_list[] 中にはサブカテゴリも含まれるので，それらを再度ソ
+            ートし，サブカテゴリのあるものを先に表示する．
             """
-            for jj in sorted(tmp_list):
-            #print(jj)
-                if len(jj) == 4:
-                    subdir = jj[1]
-                    basename = jj[2]
-                    (ver, arch, build, ext, path) = jj[3]
+            for i in sorted(tmp_list):
+                if len(i[0]) == 2:
+                    subdir = i[0][1]
+                    basename = i[1]
+                    (ver, arch, build, ext, path) = i[2]
                     print("\t{}/{}-{}-{}-{}.{}"
                             .format(subdir, basename, ver, arch, build, ext))
                     if param.download or param.dlsubdir:
                         url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
                                 basename, ver, arch, build, ext)
                         download_pkg(url2, param, cat + "/" + subdir)
-            for jj in sorted(tmp_list):
-                if len(jj) == 3:
-                    basename = jj[1]
-                    (ver, arch, build, ext, path) = jj[2]
+            for i in sorted(tmp_list):
+                if len(i[0]) == 1:
+                    basename = i[1]
+                    (ver, arch, build, ext, path) = i[2]
                     print("\t{}-{}-{}-{}.{}"
                             .format(basename, ver, arch, build, ext))
                     if param.download or param.dlsubdir:
