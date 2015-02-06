@@ -5,9 +5,6 @@ import argparse, subprocess, os, pickle, urllib2
 import ftplib, sys, datetime, time
 
 PKG_PATH = "/var/log/packages/"
-#FTP_URL = "ftp://plamo.linet.gr.jp/pub/Plamo-5.x/"
-FTP_URL = "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/"
-#FTP_URL = "ftp://ftp.ring.gr.jp/pub/linux/Plamo/Plamo-5.x/"
 
 def get_args():
     parser = argparse.ArgumentParser(description="Plamo Linux update "
@@ -19,9 +16,122 @@ def get_args():
             help="download package(s) with subdir(s)")
     parser.add_argument("-b", "--blocklist", action="store_true",
             help="ignore block list")
+    parser.add_argument("-v", "--verbose", action="store_true",
+            help="verbose messages (not implemented yet)")
     parser.add_argument("-l", "--localblock",
-            help="set local blocklist filename")
+            help="set pkgname(s) to block")
+    parser.add_argument("-c", "--category",
+            help="set category(s) to check (not implemented yet)")
+    parser.add_argument("-u", "--url",
+            help="set URL to download")
+    parser.add_argument("-o", "--outputdir",
+            help="directory to save package(s)")
     return parser.parse_args()
+
+def get_system_confs():
+    conf_file = "/etc/pkginfo.conf"
+    confs = {}
+    if os.path.isfile(conf_file):
+        with open(conf_file, "r") as f:
+            lines = f.readlines()
+        for l in lines:
+            if l.find("#") != 0:
+                try:
+                    (d1, d2) = l.strip().split("=")
+                    key = d1.strip("' ")
+                    data = d2.strip("' ")
+                    confs[key] = data
+                except ValueError:
+                    pass
+    return confs
+
+def get_local_confs():
+    homedir = os.path.expanduser("~")
+    conf_file = homedir + "/" + ".pkginfo"
+    confs = {}
+    if os.path.isfile(conf_file):
+        with open(conf_file, "r") as f:
+            lines = f.readlines()
+        for l in lines:
+            if l.find("#") != 0:
+                try:
+                    (d1, d2) = l.strip().split("=")
+                    key = d1.strip("' ")
+                    data = d2.strip("' ")
+                    confs[key] = data
+                except ValueError:
+                    pass
+    return confs
+
+def get_param_confs():
+    confs = {}
+    param = get_args()
+    if param.category:
+        confs["CHK_CATEGORY"] = param.category
+    if param.blocklist:
+        confs["BLOCK_PKG"] = True
+    if param.url:
+        confs["URL"] = param.url
+    if param.download:
+        confs["DOWNLOAD"] = True
+    if param.dlsubdir:
+        confs["DLSUBDIR"] = True
+    if param.outputdir:
+        confs["DOWNDIR"] = param.outputdir
+    if param.localblock:
+        confs["LOCAL_BLOCK"] = param.localblock
+    if param.verbose:
+        confs["VERBOSE"] = True
+    return confs
+
+def get_confs():
+    system_confs = get_system_confs()
+    local_confs = get_local_confs()
+    param_confs = get_param_confs()
+    # defaults configs
+    confs = {"CHK_CATEGORY":"",
+            "BLOCK_PKG":False,
+            "URL":"ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/",
+            "DOWNLOAD":False,
+            "DLSUBDIR":False,
+            "DOWNDIR":"",
+            "VERBOSE":False}
+    """
+    各種設定は，
+    引数 --> ローカル(~/.pkginfo) --> システム(/etc/pkginfo.conf)
+    の順に評価する．
+    """
+    for i in confs.keys():
+        if i in param_confs:
+            confs[i] = param_confs[i]
+        elif i in local_confs:
+            confs[i] = local_confs[i]
+        elif i in system_confs:
+            confs[i] = system_confs[i]
+
+    """
+    ローカルでブロックしたいパッケージは追加する方が便利だろう．
+    """
+    confs["LOCAL_BLOCK"] = ""
+    try:
+        system_confs["LOCAL_BLOCK"]
+        confs["LOCAL_BLOCK"] = \
+                confs["LOCAL_BLOCK"] + " " + system_confs["LOCAL_BLOCK"]
+    except KeyError:
+        pass
+    try:
+        local_confs["LOCAL_BLOCK"]
+        confs["LOCAL_BLOCK"] = \
+                confs["LOCAL_BLOCK"] + " " + local_confs["LOCAL_BLOCK"]
+    except KeyError:
+        pass
+    try:
+        param_confs["LOCAL_BLOCK"]
+        confs["LOCAL_BLOCK"] = \
+                confs["LOCAL_BLOCK"] + " " + param_confs["LOCAL_BLOCK"]
+    except KeyError:
+        pass
+    return confs
 
 def get_arch():
     arch = subprocess.check_output("uname -m".split()).strip()
@@ -36,18 +146,9 @@ def get_local_pkgs():
         pkglist[basename] = (vers, p_arch, build)
     return pkglist
 
-def get_ftp_pkgs(arch):
-    url = FTP_URL + "allpkgs_" + arch + ".pickle"
+def get_ftp_pkgs(arch, confs):
+    url = confs["URL"] + "allpkgs_" + arch + ".pickle"
     return pickle.load(urllib2.urlopen(url))
-
-def get_localblock(blockfile):
-    with open(blockfile, "r") as f:
-        lbs = f.readlines()
-    new_list = []
-    for i in lbs:
-        if len(i.strip()):
-            new_list.append(i.strip())
-    return new_list
 
 def check_replaces(orig_list, replaces):
     for ck in replaces.keys():
@@ -63,12 +164,21 @@ def rev_replaces(replaces):
         rev_list[replaces[i]] = i
     return rev_list
 
-def download_pkg(url, param, subdir):
+def download_pkg(url, confs, subdir):
     hname = url.split("/")[2]
     pname = "/".join(url.split("/")[3:-1])
     fname = url.split("/")[-1]
     print("downloading: {}".format(fname))
-    if param.dlsubdir:
+    if confs["DOWNDIR"]:
+        if not os.path.isdir(confs["DOWNDIR"]):
+            os.makedirs(confs["DOWNDIR"])
+        cwd = os.getcwd()
+        os.chdir(confs["DOWNDIR"])
+        if confs["DLSUBDIR"]:
+            if not os.path.isdir(subdir):
+                os.makedirs(subdir)
+            os.chdir(subdir)
+    elif confs["DLSUBDIR"]:
         if not os.path.isdir(subdir):
             os.makedirs(subdir)
         cwd = os.getcwd()
@@ -97,8 +207,10 @@ def download_pkg(url, param, subdir):
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
     os.utime(fname, (mtime, mtime))
-    if param.dlsubdir:
+    try:
         os.chdir(cwd)
+    except NameError:
+        pass
 
 def make_catlist(remote_pkgs):
     """
@@ -146,7 +258,7 @@ def get_local_category(local_pkgs):
     return local_category
 
 def main():
-    param = get_args()
+    confs = get_confs()
     """
     my_arch: この環境の arch 名(x86/x86_64)
     local_pkgs: この環境にインストール済みパッケージのリスト
@@ -154,27 +266,23 @@ def main():
     """
     my_arch = get_arch()
     local_pkgs = get_local_pkgs()
-    ftp_pkgs = get_ftp_pkgs(my_arch)
+    ftp_pkgs = get_ftp_pkgs(my_arch, confs)
     """
-    --localblock オプションで指定したファイルから，表示対象外とするファ
-    イルを読み込み，blockpkgs に追加する．
+    LOCAL_BLOCK (--localblock) オプションで指定したパッケージ名を，
+    blockpkgs に追加する．
     """
-    if param.localblock:
-        if os.path.exists(param.localblock):
-            new_block = []
-            for i in ftp_pkgs["__blockpkgs"]:
-                new_block.append(i)
-            for i in get_localblock(param.localblock):
-                new_block.append(i)
-            ftp_pkgs["__blockpkgs"] = new_block
-        else:
-            print("localblock file: {} doesn't exist.  "
-                    "Ignore this option.".format(param.localblock))
+    if confs["LOCAL_BLOCK"]:
+        new_block = []
+        for i in ftp_pkgs["__blockpkgs"]:
+            new_block.append(i)
+        for i in confs["LOCAL_BLOCK"].split():
+            new_block.append(i)
+        ftp_pkgs["__blockpkgs"] = new_block
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
     """
-    if not param.blocklist:
+    if not confs["BLOCK_PKG"]:
         for bp in ftp_pkgs["__blockpkgs"]:
             if bp in local_pkgs:
                 del(local_pkgs[bp])
@@ -215,11 +323,11 @@ def main():
                             .format(i, local_ver, local_arch, local_build))
                     print("new   package: {}-{}-{}-{}"
                             .format(i, ver, p_arch, build))
-                url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path, i,
+                url2 = "{}{}/{}-{}-{}-{}.{}".format(confs["URL"], path, i,
                         ver, p_arch, build, ext)
                 print("URL: {}".format(url2))
-                if param.download or param.dlsubdir:
-                    download_pkg(url2, param, "/".join(path.split("/")[2:]))
+                if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+                    download_pkg(url2, confs, "/".join(path.split("/")[2:]))
                 print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
@@ -242,10 +350,10 @@ def main():
                 pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch, build, ext)
                 print("** {} should be a new package in {} category."
                         .format(pkgname, i))
-                url2 = "{}{}/{}".format(FTP_URL, path, pkgname)
+                url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
                 print("URL: {}".format(url2))
-                if param.download or param.dlsubdir:
-                    download_pkg(url2, param, "/".join(path.split("/")[2:]))
+                if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+                    download_pkg(url2, confs, "/".join(path.split("/")[2:]))
                 print("")
 
 if __name__ == "__main__":
