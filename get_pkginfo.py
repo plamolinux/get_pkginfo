@@ -51,12 +51,6 @@ def get_localblock(blockfile):
             new_list.append(i.strip())
     return new_list
 
-def rev_replaces(replaces):
-    rev_list = {}
-    for i in replaces.keys():
-        rev_list[replaces[i]] = i
-    return rev_list
-
 def check_replaces(orig_list, replaces):
     for ck in replaces.keys():
         if ck in orig_list:
@@ -64,6 +58,12 @@ def check_replaces(orig_list, replaces):
             del(orig_list[ck])
             orig_list[replaces[ck]] = (ver, arch, build)
     return orig_list
+
+def rev_replaces(replaces):
+    rev_list = {}
+    for i in replaces.keys():
+        rev_list[replaces[i]] = i
+    return rev_list
 
 def download_pkg(url, param, subdir):
     hname = url.split("/")[2]
@@ -191,57 +191,33 @@ def main():
     その際，local_pkgs の old_name は失なわれるので，表示用に
     replace_list[] を逆引きにした rev_list[] を使う．
     """
-    replaces = ftp_pkgs["__replaces"]
-    rev_list = rev_replaces(replaces)
-    check_pkgs = check_replaces(local_pkgs, replaces)
+    check_pkgs = check_replaces(local_pkgs, ftp_pkgs["__replaces"])
+    rev_list = rev_replaces(ftp_pkgs["__replaces"])
     if param.reverse:
-        cat_list = []
         not_installed = []
         for i in ftp_pkgs.keys():
             if i in ["__blockpkgs", "__replaces"]:
                 continue
             if not local_pkgs.has_key(i):
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-                path_list = path.split("/")[2:]
-                if path_list[0] not in cat_list:
-                    cat_list.append(path_list[0])
-                not_installed.append((path_list, i, ftp_pkgs[i]))
+                pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
+                path_list = "{}/{}".format(path, pkgname).split("/")[2:]
+                not_installed.append((path_list, path, pkgname))
         print("un-selected packages:")
         """
-        カテゴリー別に表示するために，該当するカテゴリーのパッケージを
-        いったん tmp_list[] に集める
+        カテゴリー別に，カテゴリー内のパッケージを Plamo インストーラが
+        インストールする順番にソートして表示する．
         """
-        for cat in sorted(cat_list):
-            print("category: {}".format(cat))
-            tmp_list = []
-            for i in not_installed:
-                if i[0][0] == cat:
-                    tmp_list.append(i)
-            """
-            tmp_list[] 中にはサブカテゴリも含まれるので，それらを再度ソ
-            ートし，サブカテゴリのあるものを先に表示する．
-            """
-            for i in sorted(tmp_list):
-                if len(i[0]) == 2:
-                    subdir = i[0][1]
-                    basename = i[1]
-                    (ver, arch, build, ext, path) = i[2]
-                    print("\t{}/{}-{}-{}-{}.{}"
-                            .format(subdir, basename, ver, arch, build, ext))
-                    if param.download or param.dlsubdir:
-                        url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
-                                basename, ver, arch, build, ext)
-                        download_pkg(url2, param, cat + "/" + subdir)
-            for i in sorted(tmp_list):
-                if len(i[0]) == 1:
-                    basename = i[1]
-                    (ver, arch, build, ext, path) = i[2]
-                    print("\t{}-{}-{}-{}.{}"
-                            .format(basename, ver, arch, build, ext))
-                    if param.download or param.dlsubdir:
-                        url2 = "{}{}/{}-{}-{}-{}.{}".format(FTP_URL, path,
-                                basename, ver, arch, build, ext)
-                        download_pkg(url2, param, cat)
+        print("category: {}".format(sorted(not_installed)[0][0][0]))
+        ct_prev = sorted(not_installed)[0][0][0]
+        for i in sorted(not_installed):
+            if i[0][0] != ct_prev:
+                print("category: {}".format(i[0][0]))
+            ct_prev = i[0][0]
+            print("\t{}".format("/".join(i[0][1:])))
+            if param.download or param.dlsubdir:
+                url2 = "{}{}/{}".format(FTP_URL, i[1], i[2])
+                download_pkg(url2, param, "/".join(i[0]))
         return
     for i in sorted(check_pkgs.keys()):
         try:
