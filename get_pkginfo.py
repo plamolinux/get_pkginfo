@@ -49,12 +49,6 @@ def get_localblock(blockfile):
             new_list.append(i.strip())
     return new_list
 
-def rev_replaces(replaces):
-    rev_list = {}
-    for i in replaces.keys():
-        rev_list[replaces[i]] = i
-    return rev_list
-
 def check_replaces(orig_list, replaces):
     for ck in replaces.keys():
         if ck in orig_list:
@@ -62,6 +56,12 @@ def check_replaces(orig_list, replaces):
             del(orig_list[ck])
             orig_list[replaces[ck]] = (ver, arch, build)
     return orig_list
+
+def rev_replaces(replaces):
+    rev_list = {}
+    for i in replaces.keys():
+        rev_list[replaces[i]] = i
+    return rev_list
 
 def download_pkg(url, param, subdir):
     hname = url.split("/")[2]
@@ -189,9 +189,8 @@ def main():
     その際，local_pkgs の old_name は失なわれるので，表示用に
     replace_list[] を逆引きにした rev_list[] を使う．
     """
-    replaces = ftp_pkgs["__replaces"]
-    rev_list = rev_replaces(replaces)
-    check_pkgs = check_replaces(local_pkgs, replaces)
+    check_pkgs = check_replaces(local_pkgs, ftp_pkgs["__replaces"])
+    rev_list = rev_replaces(ftp_pkgs["__replaces"])
     for i in sorted(check_pkgs.keys()):
         try:
             (ver, p_arch, build, ext, path) = ftp_pkgs[i]
