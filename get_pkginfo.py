@@ -14,7 +14,7 @@ def get_args():
             help="download package(s)")
     mexgrp.add_argument("-s", "--dlsubdir", action="store_true",
             help="download package(s) with subdir(s)")
-    parser.add_argument("-b", "--blocklist", action="store_true",
+    parser.add_argument("-b", "--blocklist", action="store_false",
             help="ignore block list")
     parser.add_argument("-v", "--verbose", action="store_true",
             help="verbose messages (not implemented yet)")
@@ -40,6 +40,10 @@ def get_system_confs():
                     (d1, d2) = l.strip().split("=")
                     key = d1.strip("' ")
                     data = d2.strip("' ")
+                    if data == "True":
+                      data = True
+                    elif data == "False":
+                      data = False
                     confs[key] = data
                 except ValueError:
                     pass
@@ -58,6 +62,10 @@ def get_local_confs():
                     (d1, d2) = l.strip().split("=")
                     key = d1.strip("' ")
                     data = d2.strip("' ")
+                    if data == "True":
+                      data = True
+                    elif data == "False":
+                      data = False
                     confs[key] = data
                 except ValueError:
                     pass
@@ -68,8 +76,8 @@ def get_param_confs():
     param = get_args()
     if param.category:
         confs["CHK_CATEGORY"] = param.category
-    if param.blocklist:
-        confs["BLOCK_PKG"] = True
+    if not param.blocklist:
+        confs["BLOCK_PKG"] = False
     if param.url:
         confs["URL"] = param.url
     if param.download:
@@ -90,7 +98,7 @@ def get_confs():
     param_confs = get_param_confs()
     # defaults configs
     confs = {"CHK_CATEGORY":"",
-            "BLOCK_PKG":False,
+            "BLOCK_PKG":True,
             "URL":"ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/",
             "DOWNLOAD":False,
             "DLSUBDIR":False,
@@ -282,7 +290,7 @@ def main():
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
     """
-    if not confs["BLOCK_PKG"]:
+    if confs["BLOCK_PKG"]:
         for bp in ftp_pkgs["__blockpkgs"]:
             if bp in local_pkgs:
                 del(local_pkgs[bp])
