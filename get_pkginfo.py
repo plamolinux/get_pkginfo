@@ -9,23 +9,23 @@ PKG_PATH = "/var/log/packages/"
 def get_args():
     parser = argparse.ArgumentParser(description="Plamo Linux update "
             "packages check and download")
+    parser.add_argument("-v", "--verbose", action="store_true",
+            help="verbose messages (not implemented yet)")
+    parser.add_argument("-u", "--url",
+            help="set URL to download")
     mexgrp = parser.add_mutually_exclusive_group()
     mexgrp.add_argument("-d", "--download", action="store_true",
             help="download package(s)")
     mexgrp.add_argument("-s", "--dlsubdir", action="store_true",
             help="download package(s) with subdir(s)")
+    parser.add_argument("-o", "--downtodir",
+            help="directory to save package(s)")
+    parser.add_argument("-c", "--chkcategory",
+            help="set category(s) to check (not implemented yet)")
     parser.add_argument("-b", "--blocklist", action="store_false",
             help="ignore block list")
-    parser.add_argument("-v", "--verbose", action="store_true",
-            help="verbose messages (not implemented yet)")
     parser.add_argument("-l", "--localblock",
             help="set pkgname(s) to block")
-    parser.add_argument("-c", "--category",
-            help="set category(s) to check (not implemented yet)")
-    parser.add_argument("-u", "--url",
-            help="set URL to download")
-    parser.add_argument("-o", "--outputdir",
-            help="directory to save package(s)")
     return parser.parse_args()
 
 def get_system_confs():
@@ -74,22 +74,22 @@ def get_local_confs():
 def get_param_confs():
     confs = {}
     param = get_args()
-    if param.category:
-        confs["CHK_CATEGORY"] = param.category
-    if not param.blocklist:
-        confs["BLOCK_PKG"] = False
+    if param.verbose:
+        confs["VERBOSE"] = True
     if param.url:
         confs["URL"] = param.url
     if param.download:
         confs["DOWNLOAD"] = True
     if param.dlsubdir:
         confs["DLSUBDIR"] = True
-    if param.outputdir:
-        confs["DOWNDIR"] = param.outputdir
+    if param.downtodir:
+        confs["DOWNTODIR"] = param.downtodir
+    if param.chkcategory:
+        confs["CHKCATEGORY"] = param.chkcategory
+    if not param.blocklist:
+        confs["BLOCKLIST"] = False
     if param.localblock:
-        confs["LOCAL_BLOCK"] = param.localblock
-    if param.verbose:
-        confs["VERBOSE"] = True
+        confs["LOCALBLOCK"] = param.localblock
     return confs
 
 def get_confs():
@@ -97,13 +97,13 @@ def get_confs():
     local_confs = get_local_confs()
     param_confs = get_param_confs()
     # defaults configs
-    confs = {"CHK_CATEGORY":"",
-            "BLOCK_PKG":True,
-            "URL":"ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/",
-            "DOWNLOAD":False,
-            "DLSUBDIR":False,
-            "DOWNDIR":"",
-            "VERBOSE":False}
+    confs = {"VERBOSE": False,
+            "URL": "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/",
+            "DOWNLOAD": False,
+            "DLSUBDIR": False,
+            "DOWNTODIR": "",
+            "CHKCATEGORY": "",
+            "BLOCKLIST": True}
     """
     各種設定は，
     引数 --> ローカル(~/.pkginfo) --> システム(/etc/pkginfo.conf)
@@ -120,23 +120,23 @@ def get_confs():
     """
     ローカルでブロックしたいパッケージは追加する方が便利だろう．
     """
-    confs["LOCAL_BLOCK"] = ""
+    confs["LOCALBLOCK"] = ""
     try:
-        system_confs["LOCAL_BLOCK"]
-        confs["LOCAL_BLOCK"] = \
-                confs["LOCAL_BLOCK"] + " " + system_confs["LOCAL_BLOCK"]
+        system_confs["LOCALBLOCK"]
+        confs["LOCALBLOCK"] = \
+                confs["LOCALBLOCK"] + " " + system_confs["LOCALBLOCK"]
     except KeyError:
         pass
     try:
-        local_confs["LOCAL_BLOCK"]
-        confs["LOCAL_BLOCK"] = \
-                confs["LOCAL_BLOCK"] + " " + local_confs["LOCAL_BLOCK"]
+        local_confs["LOCALBLOCK"]
+        confs["LOCALBLOCK"] = \
+                confs["LOCALBLOCK"] + " " + local_confs["LOCALBLOCK"]
     except KeyError:
         pass
     try:
-        param_confs["LOCAL_BLOCK"]
-        confs["LOCAL_BLOCK"] = \
-                confs["LOCAL_BLOCK"] + " " + param_confs["LOCAL_BLOCK"]
+        param_confs["LOCALBLOCK"]
+        confs["LOCALBLOCK"] = \
+                confs["LOCALBLOCK"] + " " + param_confs["LOCALBLOCK"]
     except KeyError:
         pass
     return confs
@@ -177,11 +177,11 @@ def download_pkg(url, confs, subdir):
     pname = "/".join(url.split("/")[3:-1])
     fname = url.split("/")[-1]
     print("downloading: {}".format(fname))
-    if confs["DOWNDIR"]:
-        if not os.path.isdir(confs["DOWNDIR"]):
-            os.makedirs(confs["DOWNDIR"])
+    if confs["DOWNTODIR"]:
+        if not os.path.isdir(confs["DOWNTODIR"]):
+            os.makedirs(confs["DOWNTODIR"])
         cwd = os.getcwd()
-        os.chdir(confs["DOWNDIR"])
+        os.chdir(confs["DOWNTODIR"])
         if confs["DLSUBDIR"]:
             if not os.path.isdir(subdir):
                 os.makedirs(subdir)
@@ -249,17 +249,17 @@ def get_local_category(local_pkgs):
     トール済みならば，そのカテゴリは選択されていたと考える．
     """
     local_category = ["00_base"]
-    reps = {"01_minimum":"gcc",
-            "02_x11":"xorg_server",
-            "03_xclassics":"kterm",
-            "04_xapps":"firefox",
-            "05_ext":"mplayer",
-            "06_xfce":"xfwm4",
-            "07_kde":"kde_baseapps",
-            "08_tex":"ptexlive",
-            "09_kernel":"kernelsrc",
-            "10_lof":"libreoffice_base",
-            "11_mate":"mate_desktop"}
+    reps = {"01_minimum": "gcc",
+            "02_x11": "xorg_server",
+            "03_xclassics": "kterm",
+            "04_xapps": "firefox",
+            "05_ext": "mplayer",
+            "06_xfce": "xfwm4",
+            "07_kde": "kde_baseapps",
+            "08_tex": "ptexlive",
+            "09_kernel": "kernelsrc",
+            "10_lof": "libreoffice_base",
+            "11_mate": "mate_desktop"}
     for i in sorted(reps.keys()):
         if reps[i] in local_pkgs:
             local_category.append(i)
@@ -276,21 +276,21 @@ def main():
     local_pkgs = get_local_pkgs()
     ftp_pkgs = get_ftp_pkgs(my_arch, confs)
     """
-    LOCAL_BLOCK (--localblock) オプションで指定したパッケージ名を，
+    LOCALBLOCK (--localblock) オプションで指定したパッケージ名を，
     blockpkgs に追加する．
     """
-    if confs["LOCAL_BLOCK"]:
+    if confs["LOCALBLOCK"]:
         new_block = []
         for i in ftp_pkgs["__blockpkgs"]:
             new_block.append(i)
-        for i in confs["LOCAL_BLOCK"].split():
+        for i in confs["LOCALBLOCK"].split():
             new_block.append(i)
         ftp_pkgs["__blockpkgs"] = new_block
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
     """
-    if confs["BLOCK_PKG"]:
+    if confs["BLOCKLIST"]:
         for bp in ftp_pkgs["__blockpkgs"]:
             if bp in local_pkgs:
                 del(local_pkgs[bp])
