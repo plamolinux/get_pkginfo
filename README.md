@@ -4,7 +4,7 @@ Script to check and download the updated package
 
 ```
 usage: get_pkginfo.py [-h] [-v] [-u URL] [-d | -s] [-o DOWNTODIR]
-                      [-c CHKCATEGORY] [-b] [-l LOCALBLOCK] [-r]
+                      [-c CHKCATEGORY] [-b] [-l LOCALBLOCK] [-a | -i] [-r]
 
 Plamo Linux update packages check and download
 
@@ -17,10 +17,12 @@ optional arguments:
   -o DOWNTODIR, --downtodir DOWNTODIR
                         directory to save package(s)
   -c CHKCATEGORY, --chkcategory CHKCATEGORY
-                        set category(s) to check (not implemented yet)
+                        set category(s) to check
   -b, --blocklist       ignore block list
   -l LOCALBLOCK, --localblock LOCALBLOCK
                         set pkgname(s) to block
+  -a, --autoinstall     install downloaded package(s) automatically
+  -i, --interactive     install downloaded package(s) interactively
   -r, --reverse         find un-installed package(s)
 ```
 
@@ -47,9 +49,12 @@ URL         : チェック/ダウンロード先の URL
 DOWNTODIR   : ダウンロードしたパッケージの置き場所(要書き込みパーミッシ
               ョン)(ex: /var/Newpkgs)．
 CHKCATEGORY : インストールしたカテゴリに関わらずチェックしたいカテゴリ
-              を指定する(未実装)．
+              を指定する．
 LOCALBLOCK  : ブロックしたいパッケージ名．一行にベース名をスペース区切
               りで連ねて書く(ex: man man_db ffmpeg mplayer)．
+INSTALL     : 自動インストールのモードを auto か manual にする．manual
+              の場合，各パッケージのインストール前に確認する．auto の場
+              合は問い合わせずにインストールを進める．
 
 以下の項目は True/False で指定．
 VERBOSE   : (未実装)
@@ -68,10 +73,12 @@ DLSUBDIR = True
 DOWNTODIR = /var/Newpkgs
 BLOCKLIST = True
 LOCALBLOCK = man man_db ffmpeg
+INSTALL = ''
 REVERSE = False
 
 ex2:
 LOCALBLOCK = 'man man_db ffmpeg'
+INSTALL = manual
 
 設定ファイルのパースは
 
@@ -95,10 +102,11 @@ VERBOSE      : False (未実装)
 URL          : ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/
 DOWNLOAD     : False
 DLSUBDIR     : False
-DOWNTODIR    : "" (= cwd)
-CHKCATEGORY  : "" (無し) (未実装)
+DOWNTODIR    : '' (= cwd)
+CHKCATEGORY  : '' (無し)
 BLOCKLIST    : True
-LOCALBLOCK   : "" (無し)
+LOCALBLOCK   : '' (無し)
+INSTALL      : '' (自動インストールしない)
 REVERSE      : False
 
 ○引数による指定
@@ -122,15 +130,20 @@ REVERSE      : False
 -o/--downtodir   : パッケージをセーブする先のディレクトリを指定する．
 
 -c/--chkcategory : インストールしたカテゴリに関わらずチェックしたいカテ
-                   ゴリを指定する(未実装)．
+                   ゴリを指定する．
 
--b/--blocklist   : ブロックリスト機能をオフにする．
+-b/--blocklist   : ブロックリスト機能をオフにする(デフォルトオン)．
 
 -l/--localblock  : ローカルにブロックしたいパッケージのベース名を指定す
                    る．
                    複数指定する場合は "man man_db ..." のようにスペース
                    で区切り，*クォートする*．
                    この項目は設定ファイルの指定に*追加される*．
+
+-a/--autoinstall : 自動インストールモードを auto にする(-i と排他)．
+
+-i/--interactive : 自動インストールモードを manual にする(-a と排他)．
+
 -r/--reverse     : ローカルにインストールされていないパッケージを表示す
                    る．
 ```
