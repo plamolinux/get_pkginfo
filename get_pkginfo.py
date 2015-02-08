@@ -13,19 +13,24 @@ def get_args():
             help="verbose messages (not implemented yet)")
     parser.add_argument("-u", "--url",
             help="set URL to download")
-    mexgrp = parser.add_mutually_exclusive_group()
-    mexgrp.add_argument("-d", "--download", action="store_true",
+    megrp1 = parser.add_mutually_exclusive_group()
+    megrp1.add_argument("-d", "--download", action="store_true",
             help="download package(s)")
-    mexgrp.add_argument("-s", "--dlsubdir", action="store_true",
+    megrp1.add_argument("-s", "--dlsubdir", action="store_true",
             help="download package(s) with subdir(s)")
     parser.add_argument("-o", "--downtodir",
             help="directory to save package(s)")
     parser.add_argument("-c", "--chkcategory",
-            help="set category(s) to check (not implemented yet)")
+            help="set category(s) to check")
     parser.add_argument("-b", "--blocklist", action="store_false",
             help="ignore block list")
     parser.add_argument("-l", "--localblock",
             help="set pkgname(s) to block")
+    megrp2 = parser.add_mutually_exclusive_group()
+    megrp2.add_argument("-a", "--autoinstall", action="store_true",
+            help="install downloaded package(s) automatically")
+    megrp2.add_argument("-i", "--interactive", action="store_true",
+            help="install downloaded package(s) interactively")
     return parser.parse_args()
 
 def get_system_confs():
@@ -90,6 +95,10 @@ def get_param_confs():
         confs["BLOCKLIST"] = False
     if param.localblock:
         confs["LOCALBLOCK"] = param.localblock
+    if param.autoinstall:
+        confs["INSTALL"] = "auto"
+    if param.interactive:
+        confs["INSTALL"] = "manual"
     return confs
 
 def get_confs():
@@ -103,7 +112,8 @@ def get_confs():
             "DLSUBDIR": False,
             "DOWNTODIR": "",
             "CHKCATEGORY": "",
-            "BLOCKLIST": True}
+            "BLOCKLIST": True,
+            "INSTALL": ""}
     """
     各種設定は，
     引数 --> ローカル(~/.pkginfo) --> システム(/etc/pkginfo.conf)
@@ -139,6 +149,16 @@ def get_confs():
                 confs["LOCALBLOCK"] + " " + param_confs["LOCALBLOCK"]
     except KeyError:
         pass
+    """
+    confs["INSTALL"] が指定されていれば sudo する旨を警告する．
+    """
+    if confs["INSTALL"]:
+        sys.stderr.write("You need sudo to install package(s).  "
+                "Are you sure? [Y/n] ")
+        if raw_input().lower()[0] == "n":
+            sys.stderr.write("Interrupted.\n")
+            sys.exit()
+        confs["DOWNLOAD"] = True
     return confs
 
 def get_arch():
@@ -180,7 +200,6 @@ def download_pkg(url, confs, subdir):
     if confs["DOWNTODIR"]:
         if not os.path.isdir(confs["DOWNTODIR"]):
             os.makedirs(confs["DOWNTODIR"])
-        cwd = os.getcwd()
         os.chdir(confs["DOWNTODIR"])
         if confs["DLSUBDIR"]:
             if not os.path.isdir(subdir):
@@ -189,7 +208,6 @@ def download_pkg(url, confs, subdir):
     elif confs["DLSUBDIR"]:
         if not os.path.isdir(subdir):
             os.makedirs(subdir)
-        cwd = os.getcwd()
         os.chdir(subdir)
     ftp = ftplib.FTP(hname)
     ftp.login()
@@ -215,10 +233,7 @@ def download_pkg(url, confs, subdir):
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
     os.utime(fname, (mtime, mtime))
-    try:
-        os.chdir(cwd)
-    except NameError:
-        pass
+    return os.getcwd()
 
 def make_catlist(remote_pkgs):
     """
@@ -229,7 +244,7 @@ def make_catlist(remote_pkgs):
     """
     catlist = {}
     for i in remote_pkgs:
-        if i not in ["__blockpkgs", "__replaces"]:
+        if i not in ["__blockpkgs", "__replaces", "__no_install"]:
             try:
                 (ver, p_arch, build, ext, path) = remote_pkgs[i]
             except:
@@ -243,27 +258,51 @@ def make_catlist(remote_pkgs):
                 catlist[cat] = tmp_list
     return catlist
 
-def get_local_category(local_pkgs):
-    """
-    各カテゴリの代表的なパッケージのリスト．これらのパッケージがインス
-    トール済みならば，そのカテゴリは選択されていたと考える．
-    """
-    local_category = ["00_base"]
-    reps = {"01_minimum": "gcc",
-            "02_x11": "xorg_server",
-            "03_xclassics": "kterm",
-            "04_xapps": "firefox",
-            "05_ext": "mplayer",
-            "06_xfce": "xfwm4",
-            "07_kde": "kde_baseapps",
-            "08_tex": "ptexlive",
-            "09_kernel": "kernelsrc",
-            "10_lof": "libreoffice_base",
-            "11_mate": "mate_desktop"}
-    for i in sorted(reps.keys()):
-        if reps[i] in local_pkgs:
+def get_local_category(local_pkgs, confs):
+    if confs["CHKCATEGORY"]:
+        local_category = []
+        for i in confs["CHKCATEGORY"].split():
             local_category.append(i)
+    else:
+        """
+        各カテゴリの代表的なパッケージのリスト．これらのパッケージがイ
+        ンストール済みならば，そのカテゴリは選択されていたと考える．
+        """
+        local_category = ["00_base"]
+        reps = {"01_minimum": "gcc",
+                "02_x11": "xorg_server",
+                "03_xclassics": "kterm",
+                "04_xapps": "firefox",
+                "05_ext": "mplayer",
+                "06_xfce": "xfwm4",
+                "07_kde": "kde_baseapps",
+                "08_tex": "ptexlive",
+                "09_kernel": "kernelsrc",
+                "10_lof": "libreoffice_base",
+                "11_mate": "mate_desktop"}
+        for i in sorted(reps.keys()):
+            if reps[i] in local_pkgs:
+                local_category.append(i)
     return local_category
+
+def install_pkg(mwd, pkg, method):
+    os.chdir(mwd)
+    cmd = "sudo /sbin/updatepkg -f {}".format(pkg)
+    if method == "auto":
+        print("installing: {}".format(pkg))
+        print("invoking: {}".format(cmd))
+        res = subprocess.check_call(cmd.split())
+        return res
+    else:
+        sys.stderr.write("Install {}? [y/N] ".format(pkg))
+        if raw_input("").lower()[0] == "y":
+            print("installing: {}".format(pkg))
+            print("invoking: {}".format(cmd))
+            res = subprocess.check_call(cmd.split())
+            return res
+        else:
+            sys.stderr.write("Skipped.\n")
+            return False
 
 def main():
     confs = get_confs()
@@ -276,16 +315,19 @@ def main():
     local_pkgs = get_local_pkgs()
     ftp_pkgs = get_ftp_pkgs(my_arch, confs)
     """
+    -b オプションを指定してブロックリストを解除した場合も，非インストー
+    ルリスト(ftp_pkgs["__no_install"])は有効であるべきなので，システム
+    のブロックストを非インストールリストに追加しておく．
+    """
+    for i in ftp_pkgs["__blockpkgs"]:
+        ftp_pkgs["__no_install"].append(i)
+    """
     LOCALBLOCK (--localblock) オプションで指定したパッケージ名を，
     blockpkgs に追加する．
     """
     if confs["LOCALBLOCK"]:
-        new_block = []
-        for i in ftp_pkgs["__blockpkgs"]:
-            new_block.append(i)
         for i in confs["LOCALBLOCK"].split():
-            new_block.append(i)
-        ftp_pkgs["__blockpkgs"] = new_block
+            ftp_pkgs["__blockpkgs"].append(i)
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
@@ -331,11 +373,25 @@ def main():
                             .format(i, local_ver, local_arch, local_build))
                     print("new   package: {}-{}-{}-{}"
                             .format(i, ver, p_arch, build))
-                url2 = "{}{}/{}-{}-{}-{}.{}".format(confs["URL"], path, i,
-                        ver, p_arch, build, ext)
+                pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
+                url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
                 print("URL: {}".format(url2))
                 if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
-                    download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                    cwd = os.getcwd()
+                    mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                    if confs["INSTALL"]:
+                        if i in ftp_pkgs["__no_install"]:
+                            print("{} needs some tweaks to install.  "
+                                    "Auto installation skipped.".format(i))
+                        else:
+                            if i in rev_list:
+                                print("removing {}".format(rev_list[i]))
+                                cmd = "sudo /sbin/removepkg {}".format(rev_list[i])
+                                print("invoking: {}".format(cmd))
+                                res = subprocess.check_call(cmd.split())
+                                print(res)
+                            print(install_pkg(mwd, pkgname, confs["INSTALL"]))
+                    os.chdir(cwd)
                 print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
@@ -350,7 +406,7 @@ def main():
     る．
     """
     cat_list = make_catlist(ftp_pkgs)
-    installed_category = get_local_category(local_pkgs)
+    installed_category = get_local_category(local_pkgs, confs)
     for i in installed_category:
         for j in sorted(cat_list[i]):
             if j not in local_pkgs:
@@ -361,7 +417,15 @@ def main():
                 url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
                 print("URL: {}".format(url2))
                 if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
-                    download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                    cwd = os.getcwd()
+                    mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                    if confs["INSTALL"]:
+                        if j in ftp_pkgs["__no_install"]:
+                            print("{} needs some tweaks to install.  "
+                                    "Auto installation skipped.".format(j))
+                        else:
+                            print(install_pkg(mwd, pkgname, confs["INSTALL"]))
+                    os.chdir(cwd)
                 print("")
 
 if __name__ == "__main__":
