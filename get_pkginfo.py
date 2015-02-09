@@ -57,8 +57,7 @@ def get_system_confs():
     return confs
 
 def get_local_confs():
-    homedir = os.path.expanduser("~")
-    conf_file = homedir + "/" + ".pkginfo"
+    conf_file = os.path.expanduser("~/.pkginfo")
     confs = {}
     if os.path.isfile(conf_file):
         with open(conf_file, "r") as f:
@@ -121,7 +120,7 @@ def get_confs():
             "REVERSE": False}
     """
     各種設定は，
-    引数 --> ローカル(~/.pkginfo) --> システム(/etc/pkginfo.conf)
+    引数 > ローカル(~/.pkginfo) > システム(/etc/pkginfo.conf)
     の順に評価する．
     """
     for i in confs.keys():
@@ -159,8 +158,9 @@ def get_confs():
     """
     if confs["INSTALL"]:
         sys.stderr.write("You need sudo to install package(s).  "
-                "Are you sure? [Y/n] ")
-        if raw_input().lower()[0] == "n":
+                "Are you sure? [y/N] ")
+        s = raw_input().lower()
+        if not s or s[0] != "y":
             sys.stderr.write("Interrupted.\n")
             sys.exit()
         confs["DOWNLOAD"] = True
@@ -171,12 +171,11 @@ def get_arch():
     return "x86" if arch == "i686" else arch
 
 def get_local_pkgs():
-    files = os.listdir(PKG_PATH)
     pkglist = {}
-    for file in files:
+    for file in os.listdir(PKG_PATH):
         line = open(PKG_PATH + file, "r").readline()
-        (basename, vers, p_arch, build) = line[18:].strip().split("-")
-        pkglist[basename] = (vers, p_arch, build)
+        (base, vers, p_arch, build) = line[18:].strip().split("-")
+        pkglist[base] = (vers, p_arch, build)
     return pkglist
 
 def get_ftp_pkgs(arch, confs):
@@ -206,11 +205,7 @@ def download_pkg(url, confs, subdir):
         if not os.path.isdir(confs["DOWNTODIR"]):
             os.makedirs(confs["DOWNTODIR"])
         os.chdir(confs["DOWNTODIR"])
-        if confs["DLSUBDIR"]:
-            if not os.path.isdir(subdir):
-                os.makedirs(subdir)
-            os.chdir(subdir)
-    elif confs["DLSUBDIR"]:
+    if confs["DLSUBDIR"]:
         if not os.path.isdir(subdir):
             os.makedirs(subdir)
         os.chdir(subdir)
@@ -290,24 +285,33 @@ def get_local_category(local_pkgs, confs):
                 local_category.append(i)
     return local_category
 
-def install_pkg(mwd, pkg, method):
-    os.chdir(mwd)
-    cmd = "sudo /sbin/updatepkg -f {}".format(pkg)
-    if method == "auto":
-        print("installing: {}".format(pkg))
+def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
+    base =  pkgname.split("-")[0]
+    if base in ftp_pkgs["__no_install"]:
+        print("{} needs some tweaks to install.  "
+                "Auto installation skipped.".format(base))
+        return False
+    if base in rev_list:
+        if confs["INSTALL"] == "manual":
+            sys.stderr.write("Remove {}? [y/N] ".format(rev_list[base]))
+            s = raw_input().lower()
+            if not s or s[0] != "y":
+                sys.stderr.write("Skipped.\n")
+                return False
+        print("removing {}".format(rev_list[base]))
+        cmd = "sudo /sbin/removepkg {}".format(rev_list[base])
         print("invoking: {}".format(cmd))
-        res = subprocess.check_call(cmd.split())
-        return res
-    else:
-        sys.stderr.write("Install {}? [y/N] ".format(pkg))
-        if raw_input("").lower()[0] == "y":
-            print("installing: {}".format(pkg))
-            print("invoking: {}".format(cmd))
-            res = subprocess.check_call(cmd.split())
-            return res
-        else:
+        print(subprocess.check_call(cmd.split()))
+    if confs["INSTALL"] == "manual":
+        sys.stderr.write("Install {}? [y/N] ".format(base))
+        s = raw_input().lower()
+        if not s or s[0] != "y":
             sys.stderr.write("Skipped.\n")
             return False
+    print("installing: {}".format(pkgname))
+    cmd = "sudo /sbin/updatepkg -f {}".format(pkgname)
+    print("invoking: {}".format(cmd))
+    return subprocess.check_call(cmd.split())
 
 def main():
     confs = get_confs()
@@ -377,10 +381,13 @@ def main():
             ct_prev = i[0][0]
             print("\t{}".format("/".join(i[0][1:])))
             if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
-                url2 = "{}{}/{}".format(FTP_URL, i[1], i[2])
+                url2 = "{}{}/{}".format(confs["URL"], i[1], i[2])
                 cwd = os.getcwd()
-                mwd = download_pkg(url2, confs, "/".join(i[0]))
-                os.chdir(cwd)
+                mwd = download_pkg(url2, confs, "/".join(i[0][:-1]))
+                if confs["INSTALL"]:
+                    print(install_pkg(i[2], ftp_pkgs, rev_list, confs))
+                if mwd != cwd:
+                    os.chdir(cwd)
         return
     for i in sorted(check_pkgs.keys()):
         try:
@@ -389,43 +396,34 @@ def main():
             sys.stderr.write("package: {} doesn't exist in FTP tree.\n\n"
                     .format(i))
         else:
-            chk = (ver, p_arch, build)
-            if check_pkgs[i] != chk:
-                (local_ver, local_arch, local_build) = check_pkgs[i]
-                if i in rev_list:
-                    print("** local package: {}-{}-{}-{} was renamed to"
-                            .format(rev_list[i], local_ver, local_arch,
-                            local_build))
-                    print("** new   package: {}-{}-{}-{}"
-                            .format(i, ver, p_arch, build))
-                    print("** You should manually remove old package "
-                            "(# removepkg {}) to update new one."
-                            .format(rev_list[i]))
-                else:
-                    print("local package: {}-{}-{}-{}"
-                            .format(i, local_ver, local_arch, local_build))
-                    print("new   package: {}-{}-{}-{}"
-                            .format(i, ver, p_arch, build))
-                pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
-                url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
-                print("URL: {}".format(url2))
-                if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
-                    cwd = os.getcwd()
-                    mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
-                    if confs["INSTALL"]:
-                        if i in ftp_pkgs["__no_install"]:
-                            print("{} needs some tweaks to install.  "
-                                    "Auto installation skipped.".format(i))
-                        else:
-                            if i in rev_list:
-                                print("removing {}".format(rev_list[i]))
-                                cmd = "sudo /sbin/removepkg {}".format(rev_list[i])
-                                print("invoking: {}".format(cmd))
-                                res = subprocess.check_call(cmd.split())
-                                print(res)
-                            print(install_pkg(mwd, pkgname, confs["INSTALL"]))
+            if check_pkgs[i] == (ver, p_arch, build):
+                continue
+            (local_ver, local_arch, local_build) = check_pkgs[i]
+            if i in rev_list:
+                print("** local package: {}-{}-{}-{} was renamed to"
+                        .format(rev_list[i], local_ver, local_arch,
+                        local_build))
+                print("** new   package: {}-{}-{}-{}"
+                        .format(i, ver, p_arch, build))
+                print("** You should manually remove old package "
+                        "(# removepkg {}) to update new one."
+                        .format(rev_list[i]))
+            else:
+                print("local package: {}-{}-{}-{}"
+                        .format(i, local_ver, local_arch, local_build))
+                print("new   package: {}-{}-{}-{}"
+                        .format(i, ver, p_arch, build))
+            pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
+            url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
+            print("URL: {}".format(url2))
+            if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+                cwd = os.getcwd()
+                mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                if confs["INSTALL"]:
+                    print(install_pkg(pkgname, ftp_pkgs, rev_list, confs))
+                if mwd != cwd:
                     os.chdir(cwd)
-                print("")
+            print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
     上にあるパッケージを，カテゴリをキーにして，そのカテゴリーに属する
@@ -442,24 +440,22 @@ def main():
     installed_category = get_local_category(local_pkgs, confs)
     for i in installed_category:
         for j in sorted(cat_list[i]):
-            if j not in local_pkgs:
-                (ver, p_arch, build, ext, path) = ftp_pkgs[j]
-                pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch, build, ext)
-                print("** {} should be a new package in {} category."
-                        .format(pkgname, i))
-                url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
-                print("URL: {}".format(url2))
-                if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
-                    cwd = os.getcwd()
-                    mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
-                    if confs["INSTALL"]:
-                        if j in ftp_pkgs["__no_install"]:
-                            print("{} needs some tweaks to install.  "
-                                    "Auto installation skipped.".format(j))
-                        else:
-                            print(install_pkg(mwd, pkgname, confs["INSTALL"]))
+            if j in local_pkgs:
+                continue
+            (ver, p_arch, build, ext, path) = ftp_pkgs[j]
+            pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch, build, ext)
+            print("** {} should be a new package in {} category."
+                    .format(pkgname, i))
+            url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
+            print("URL: {}".format(url2))
+            if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+                cwd = os.getcwd()
+                mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                if confs["INSTALL"]:
+                    print(install_pkg(pkgname, ftp_pkgs, rev_list, confs))
+                if mwd != cwd:
                     os.chdir(cwd)
-                print("")
+            print("")
 
 if __name__ == "__main__":
     main()
