@@ -20,7 +20,7 @@ def get_args():
             help="download package(s) with subdir(s)")
     parser.add_argument("-o", "--downtodir",
             help="directory to save package(s)")
-    parser.add_argument("-c", "--chkcategory",
+    parser.add_argument("-c", "--category",
             help="set category(s) to check")
     parser.add_argument("-b", "--blocklist", action="store_false",
             help="ignore block list")
@@ -91,8 +91,8 @@ def get_param_confs():
         confs["DLSUBDIR"] = True
     if param.downtodir:
         confs["DOWNTODIR"] = param.downtodir
-    if param.chkcategory:
-        confs["CHKCATEGORY"] = param.chkcategory
+    if param.category:
+        confs["CATEGORY"] = param.category
     if not param.blocklist:
         confs["BLOCKLIST"] = False
     if param.localblock:
@@ -115,7 +115,7 @@ def get_confs():
             "DOWNLOAD": False,
             "DLSUBDIR": False,
             "DOWNTODIR": "",
-            "CHKCATEGORY": "",
+            "CATEGORY": "",
             "BLOCKLIST": True,
             "INSTALL": "",
             "REVERSE": False}
@@ -264,9 +264,9 @@ def make_catlist(remote_pkgs):
     return catlist
 
 def get_local_category(local_pkgs, confs):
-    if confs["CHKCATEGORY"]:
+    if confs["CATEGORY"]:
         local_category = []
-        for i in confs["CHKCATEGORY"].split():
+        for i in confs["CATEGORY"].split():
             local_category.append(i)
     else:
         """
