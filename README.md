@@ -4,7 +4,7 @@ Script to check and download the updated package
 
 ```
 usage: get_pkginfo.py [-h] [-v] [-u URL] [-d | -s] [-o DOWNTODIR]
-                      [-c CHKCATEGORY] [-b] [-l LOCALBLOCK] [-a | -i]
+                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i]
 
 Plamo Linux update packages check and download
 
@@ -16,7 +16,7 @@ optional arguments:
   -s, --dlsubdir        download package(s) with subdir(s)
   -o DOWNTODIR, --downtodir DOWNTODIR
                         directory to save package(s)
-  -c CHKCATEGORY, --chkcategory CHKCATEGORY
+  -c CATEGORY, --category CATEGORY
                         set category(s) to check
   -b, --blocklist       ignore block list
   -l LOCALBLOCK, --localblock LOCALBLOCK
@@ -43,17 +43,17 @@ optional arguments:
 
 ○設定項目
 
-URL         : チェック/ダウンロード先の URL
-              (ex: ftp://plamo.linet.gr.jp/pub/Plamo-5.x/)．
-DOWNTODIR   : ダウンロードしたパッケージの置き場所(要書き込みパーミッシ
-              ョン)(ex: /var/Newpkgs)．
-CHKCATEGORY : インストールしたカテゴリに関わらずチェックしたいカテゴリ
-              を指定する．
-LOCALBLOCK  : ブロックしたいパッケージ名．一行にベース名をスペース区切
-              りで連ねて書く(ex: man man_db ffmpeg mplayer)．
-INSTALL     : 自動インストールのモードを auto か manual にする．manual
-              の場合，各パッケージのインストール前に確認する．auto の場
-              合は問い合わせずにインストールを進める．
+URL        : チェック/ダウンロード先の URL
+             (ex: ftp://plamo.linet.gr.jp/pub/Plamo-5.x/)．
+DOWNTODIR  : ダウンロードしたパッケージの置き場所(要書き込みパーミッシ
+             ョン)(ex: /var/Newpkgs)．
+CATEGORY   : インストールしたカテゴリに関わらずチェックしたいカテゴリを
+             指定する．
+LOCALBLOCK : ブロックしたいパッケージ名．一行にベース名をスペース区切り
+             で連ねて書く(ex: man man_db ffmpeg mplayer)．
+INSTALL    : 自動インストールのモードを auto か manual にする．manual
+             の場合，各パッケージのインストール前に確認する．auto の場
+             合は問い合わせずにインストールを進める．
 
 以下の項目は True/False で指定．
 VERBOSE   : (未実装)
@@ -69,11 +69,13 @@ URL = ftp://plamo.linet.gr.jp/pub/Plamo-5.x/
 DOWNLOAD = False
 DLSUBDIR = True
 DOWNTODIR = /var/Newpkgs
+CATEGORY = ''
 BLOCKLIST = True
 LOCALBLOCK = man man_db ffmpeg
 INSTALL = ''
 
 ex2:
+CATEGORY = 00_base 03_xclassics 05_ext
 LOCALBLOCK = 'man man_db ffmpeg'
 INSTALL = manual
 
@@ -95,15 +97,15 @@ if l.find("#") != 0:
 指定しなかった項目は，スクリプトに埋めこんだ以下のデフォルト値が使われ
 る．
 
-VERBOSE      : False (未実装)
-URL          : ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/
-DOWNLOAD     : False
-DLSUBDIR     : False
-DOWNTODIR    : '' (= cwd)
-CHKCATEGORY  : '' (無し)
-BLOCKLIST    : True
-LOCALBLOCK   : '' (無し)
-INSTALL      : '' (自動インストールしない)
+VERBOSE    : False (未実装)
+URL        : ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/
+DOWNLOAD   : False
+DLSUBDIR   : False
+DOWNTODIR  : '' (= cwd)
+CATEGORY   : '' (無し)
+BLOCKLIST  : True
+LOCALBLOCK : '' (無し)
+INSTALL    : '' (自動インストールしない)
 
 ○引数による指定
 
@@ -125,7 +127,7 @@ INSTALL      : '' (自動インストールしない)
 
 -o/--downtodir   : パッケージをセーブする先のディレクトリを指定する．
 
--c/--chkcategory : インストールしたカテゴリに関わらずチェックしたいカテ
+-c/--category    : インストールしたカテゴリに関わらずチェックしたいカテ
                    ゴリを指定する．
 
 -b/--blocklist   : ブロックリスト機能をオフにする(デフォルトオン)．
