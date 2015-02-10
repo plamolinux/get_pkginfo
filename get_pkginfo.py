@@ -1,8 +1,8 @@
 #!/usr/bin/python2
 # -*- coding: euc-jp -*-
 
-import argparse, subprocess, os, pickle, urllib2
-import ftplib, sys, datetime, time
+import argparse, os, sys, subprocess, pickle, urllib2
+import ftplib, datetime, time
 
 PKG_PATH = "/var/log/packages/"
 
@@ -76,8 +76,8 @@ def get_local_confs():
     return confs
 
 def get_param_confs():
-    confs = {}
     param = get_args()
+    confs = {}
     if param.verbose:
         confs["VERBOSE"] = True
     if param.url:
@@ -191,7 +191,7 @@ def rev_replaces(replaces):
         rev_list[replaces[i]] = i
     return rev_list
 
-def download_pkg(url, confs, subdir):
+def download_pkg(url, subdir, confs):
     hname = url.split("/")[2]
     pname = "/".join(url.split("/")[3:-1])
     fname = url.split("/")[-1]
@@ -230,56 +230,6 @@ def download_pkg(url, confs, subdir):
     os.utime(fname, (mtime, mtime))
     return os.getcwd()
 
-def make_catlist(remote_pkgs):
-    """
-    00_base から 11_mate までの各カテゴリーに含まれるパッケージの
-    basename を
-    catlist["02_x11"] = ["IPAexfont", "IPAfont", "MesaLib", ...]
-    のような辞書型のデータ catlist に収める処理
-    """
-    catlist = {}
-    for i in remote_pkgs:
-        if i not in ["__blockpkgs", "__replaces", "__no_install"]:
-            try:
-                (ver, p_arch, build, ext, path) = remote_pkgs[i]
-            except:
-                print("remote key: {} have illegal data: {}"
-                        .format(i, remote_pkgs[i]))
-            else:
-                dt = path.split("/")
-                cat = dt[-2] if dt[-1].find(".txz") > 0 else dt[-1]
-                tmp_list = catlist[cat] if cat in catlist else []
-                tmp_list.append(i)
-                catlist[cat] = tmp_list
-    return catlist
-
-def get_local_category(local_pkgs, confs):
-    if confs["CATEGORY"]:
-        local_category = []
-        for i in confs["CATEGORY"].split():
-            local_category.append(i)
-    else:
-        """
-        各カテゴリの代表的なパッケージのリスト．これらのパッケージがイ
-        ンストール済みならば，そのカテゴリは選択されていたと考える．
-        """
-        local_category = ["00_base"]
-        reps = {"01_minimum": "gcc",
-                "02_x11": "xorg_server",
-                "03_xclassics": "kterm",
-                "04_xapps": "firefox",
-                "05_ext": "mplayer",
-                "06_xfce": "xfwm4",
-                "07_kde": "kde_baseapps",
-                "08_tex": "ptexlive",
-                "09_kernel": "kernelsrc",
-                "10_lof": "libreoffice_base",
-                "11_mate": "mate_desktop"}
-        for i in sorted(reps.keys()):
-            if reps[i] in local_pkgs:
-                local_category.append(i)
-    return local_category
-
 def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
     base =  pkgname.split("-")[0]
     if base in ftp_pkgs["__no_install"]:
@@ -307,6 +257,55 @@ def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
     cmd = "sudo /sbin/updatepkg -f {}".format(pkgname)
     print("invoking: {}".format(cmd))
     return subprocess.check_call(cmd.split())
+
+def make_catlist(pkgs):
+    """
+    00_base から 11_mate までの各カテゴリーに含まれるパッケージの
+    basename を
+    catlist["02_x11"] = ["IPAexfont", "IPAfont", "MesaLib", ...]
+    のような辞書型のデータ catlist に収める処理
+    """
+    catlist = {}
+    for i in pkgs:
+        if i in ["__blockpkgs", "__replaces", "__no_install"]:
+            continue
+        try:
+            (ver, p_arch, build, ext, path) = pkgs[i]
+        except:
+            print("remote key: {} have illegal data: {}".format(i, pkgs[i]))
+        else:
+            cat = path.split("/")[2]
+            tmp_list = catlist[cat] if cat in catlist else []
+            tmp_list.append(i)
+            catlist[cat] = tmp_list
+    return catlist
+
+def get_local_category(pkgs, confs):
+    if confs["CATEGORY"]:
+        category = []
+        for i in confs["CATEGORY"].split():
+            category.append(i)
+        return category
+    """
+    各カテゴリの代表的なパッケージのリスト．これらのパッケージがインス
+    トール済みならば，そのカテゴリは選択されていたと考える．
+    """
+    category = ["00_base"]
+    reps = {"01_minimum": "gcc",
+            "02_x11": "xorg_server",
+            "03_xclassics": "kterm",
+            "04_xapps": "firefox",
+            "05_ext": "mplayer",
+            "06_xfce": "xfwm4",
+            "07_kde": "kde_baseapps",
+            "08_tex": "ptexlive",
+            "09_kernel": "kernelsrc",
+            "10_lof": "libreoffice_base",
+            "11_mate": "mate_desktop"}
+    for i in sorted(reps.keys()):
+        if reps[i] in pkgs:
+            category.append(i)
+    return category
 
 def main():
     confs = get_confs()
@@ -382,7 +381,7 @@ def main():
             print("URL: {}".format(url2))
             if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
                 cwd = os.getcwd()
-                mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                mwd = download_pkg(url2, "/".join(path.split("/")[2:]), confs)
                 if confs["INSTALL"]:
                     print(install_pkg(pkgname, ftp_pkgs, rev_list, confs))
                 if mwd != cwd:
@@ -395,7 +394,7 @@ def main():
     (cat_list["01_minimum"] =
             ["FDclone", "alsa_lib", "alsa_plugins", "alsa_utils", ...])
     intalled_category[] は，インストール時に選択したカテゴリのリスト．
-    (["00_base", "01_minimum", "02_x11", "04_xapps", ...])
+    (["00_base", "01_minimum", "02_x11", "03_xclassics", ...])
     installed_category[] に従って，cat_list{} にあるそのカテゴリのパッ
     ケージを調べ，ローカルにインストールされていないものがあれば表示す
     る．
@@ -414,7 +413,7 @@ def main():
             print("URL: {}".format(url2))
             if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
                 cwd = os.getcwd()
-                mwd = download_pkg(url2, confs, "/".join(path.split("/")[2:]))
+                mwd = download_pkg(url2, "/".join(path.split("/")[2:]), confs)
                 if confs["INSTALL"]:
                     print(install_pkg(pkgname, ftp_pkgs, rev_list, confs))
                 if mwd != cwd:
