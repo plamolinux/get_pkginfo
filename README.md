@@ -46,6 +46,9 @@ optional arguments:
 
 URL        : チェック/ダウンロード先の URL
              (ex: ftp://plamo.linet.gr.jp/pub/Plamo-5.x/)．
+DOWNLOAD   : ダウンロードしたパッケージの格納方法を linear か subdir に
+             する．linear の場合，単一のディレクトリに収める．subdir の
+             場合，カテゴリごとのサブディレクトリに収める．
 DOWNTODIR  : ダウンロードしたパッケージの置き場所(要書き込みパーミッシ
              ョン)(ex: /var/Newpkgs)．
 CATEGORY   : インストールしたカテゴリに関わらずチェックしたいカテゴリを
@@ -58,9 +61,6 @@ INSTALL    : 自動インストールのモードを auto か manual にする．manual
 
 以下の項目は True/False で指定．
 VERBOSE   : (未実装)
-DOWNLOAD  : ダウンロードの有無．
-DLSUBDIR  : ダウンロードしたパッケージをカテゴリごとのサブディレクトリに
-            収めるか．
 BLOCKLIST : ブロックリスト機能の有無．
 REVERSE   : ローカルにインストールされていないパッケージを表示する．
 
@@ -68,8 +68,7 @@ REVERSE   : ローカルにインストールされていないパッケージを表示する．
 
 ex1:
 URL = ftp://plamo.linet.gr.jp/pub/Plamo-5.x/
-DOWNLOAD = False
-DLSUBDIR = True
+DOWNLOAD = subdir
 DOWNTODIR = /var/Newpkgs
 CATEGORY = ''
 BLOCKLIST = True
@@ -102,8 +101,7 @@ if l.find("#") != 0:
 
 VERBOSE    : False (未実装)
 URL        : ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/
-DOWNLOAD   : False
-DLSUBDIR   : False
+DOWNLOAD   : '' (ダウンロードしない)
 DOWNTODIR  : '' (= cwd)
 CATEGORY   : '' (無し)
 BLOCKLIST  : True

@@ -85,9 +85,9 @@ def get_param_confs():
     if param.url:
         confs["URL"] = param.url
     if param.download:
-        confs["DOWNLOAD"] = True
+        confs["DOWNLOAD"] = "linear"
     if param.dlsubdir:
-        confs["DLSUBDIR"] = True
+        confs["DOWNLOAD"] = "subdir"
     if param.downtodir:
         confs["DOWNTODIR"] = param.downtodir
     if param.category:
@@ -111,8 +111,7 @@ def get_confs():
     # defaults configs
     confs = {"VERBOSE": False,
             "URL": "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/",
-            "DOWNLOAD": False,
-            "DLSUBDIR": False,
+            "DOWNLOAD": "",
             "DOWNTODIR": "",
             "CATEGORY": "",
             "BLOCKLIST": True,
@@ -163,7 +162,7 @@ def get_confs():
         if not s or s[0] != "y":
             sys.stderr.write("Interrupted.\n")
             sys.exit()
-        confs["DOWNLOAD"] = True
+        confs["DOWNLOAD"] = "subdir"
     return confs
 
 def get_arch():
@@ -205,7 +204,7 @@ def download_pkg(url, subdir, confs):
         if not os.path.isdir(confs["DOWNTODIR"]):
             os.makedirs(confs["DOWNTODIR"])
         os.chdir(confs["DOWNTODIR"])
-    if confs["DLSUBDIR"]:
+    if confs["DOWNLOAD"] == "subdir":
         if not os.path.isdir(subdir):
             os.makedirs(subdir)
         os.chdir(subdir)
@@ -379,7 +378,7 @@ def main():
                 print("category: {}".format(i[0][0]))
             ct_prev = i[0][0]
             print("\t{}".format("/".join(i[0][1:])))
-            if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+            if confs["DOWNLOAD"]:
                 url2 = "{}{}/{}".format(confs["URL"], i[1], i[2])
                 cwd = os.getcwd()
                 mwd = download_pkg(url2, "/".join(i[0][:-1]), confs)
@@ -415,7 +414,7 @@ def main():
             pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
             url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
             print("URL: {}".format(url2))
-            if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+            if confs["DOWNLOAD"]:
                 cwd = os.getcwd()
                 mwd = download_pkg(url2, "/".join(path.split("/")[2:]), confs)
                 if confs["INSTALL"]:
@@ -447,7 +446,7 @@ def main():
                     .format(pkgname, i))
             url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
             print("URL: {}".format(url2))
-            if confs["DOWNLOAD"] or confs["DLSUBDIR"]:
+            if confs["DOWNLOAD"]:
                 cwd = os.getcwd()
                 mwd = download_pkg(url2, "/".join(path.split("/")[2:]), confs)
                 if confs["INSTALL"]:
