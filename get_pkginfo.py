@@ -235,7 +235,7 @@ def download_pkg(url, subdir, confs):
     return os.getcwd()
 
 def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
-    base =  pkgname.split("-")[0]
+    base = pkgname.split("-")[0]
     if base in ftp_pkgs["__no_install"]:
         print("{} needs some tweaks to install.  "
                 "Auto installation skipped.".format(base))
@@ -361,7 +361,7 @@ def main():
         for i in ftp_pkgs.keys():
             if i in ["__blockpkgs", "__replaces", "__no_install"]:
                 continue
-            if not local_pkgs.has_key(i):
+            if not check_pkgs.has_key(i):
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
                 pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
                 path_list = "{}/{}".format(path, pkgname).split("/")[2:]
@@ -387,41 +387,44 @@ def main():
                 if mwd != cwd:
                     os.chdir(cwd)
         return
-    for i in sorted(check_pkgs.keys()):
-        try:
+    need_update = []
+    for i in ftp_pkgs.keys():
+        if i in ["__blockpkgs", "__replaces", "__no_install"]:
+            continue
+        if check_pkgs.has_key(i):
             (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-        except KeyError:
-            sys.stderr.write("package: {} doesn't exist in FTP tree.\n\n"
-                    .format(i))
-        else:
             if check_pkgs[i] == (ver, p_arch, build):
                 continue
-            (local_ver, local_arch, local_build) = check_pkgs[i]
-            if i in rev_list:
-                print("** local package: {}-{}-{}-{} was renamed to"
-                        .format(rev_list[i], local_ver, local_arch,
-                        local_build))
-                print("** new   package: {}-{}-{}-{}"
-                        .format(i, ver, p_arch, build))
-                print("** You should manually remove old package "
-                        "(# removepkg {}) to update new one."
-                        .format(rev_list[i]))
-            else:
-                print("local package: {}-{}-{}-{}"
-                        .format(i, local_ver, local_arch, local_build))
-                print("new   package: {}-{}-{}-{}"
-                        .format(i, ver, p_arch, build))
             pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
-            url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
-            print("URL: {}".format(url2))
-            if confs["DOWNLOAD"]:
-                cwd = os.getcwd()
-                mwd = download_pkg(url2, "/".join(path.split("/")[2:]), confs)
-                if confs["INSTALL"]:
-                    print(install_pkg(pkgname, ftp_pkgs, rev_list, confs))
-                if mwd != cwd:
-                    os.chdir(cwd)
-            print("")
+            path_list = "{}/{}".format(path, pkgname).split("/")[2:]
+            need_update.append((path_list, path, pkgname))
+    for i in sorted(need_update):
+        base = i[2].split("-")[0]
+        (ver, p_arch, build, ext, path) = ftp_pkgs[base]
+        (local_ver, local_arch, local_build) = check_pkgs[base]
+        if base in rev_list:
+            print("** local package: {}-{}-{}-{} was renamed to"
+                    .format(rev_list[base], local_ver, local_arch, local_build))
+            print("** new   package: {}-{}-{}-{}".format(base, ver, p_arch,
+                    build))
+            print("** You should manually remove old package "
+                    "(# removepkg {}) to update new one."
+                    .format(rev_list[base]))
+        else:
+            print("local package: {}-{}-{}-{}"
+                    .format(base, local_ver, local_arch, local_build))
+            print("new   package: {}-{}-{}-{}"
+                    .format(base, ver, p_arch, build))
+        url2 = "{}{}/{}".format(confs["URL"], i[1], i[2])
+        print("URL: {}".format(url2))
+        if confs["DOWNLOAD"]:
+            cwd = os.getcwd()
+            mwd = download_pkg(url2, "/".join(i[0][:-1]), confs)
+            if confs["INSTALL"]:
+                print(install_pkg(i[2], ftp_pkgs, rev_list, confs))
+            if mwd != cwd:
+                os.chdir(cwd)
+        print("")
     """
     新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
     上にあるパッケージを，カテゴリをキーにして，そのカテゴリーに属する
