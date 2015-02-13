@@ -35,8 +35,7 @@ def get_args():
             help="find un-installed package(s)")
     return parser.parse_args()
 
-def get_system_confs():
-    conf_file = "/etc/pkginfo.conf"
+def get_file_confs(conf_file):
     confs = {}
     if os.path.isfile(conf_file):
         with open(conf_file, "r") as f:
@@ -54,104 +53,43 @@ def get_system_confs():
                     confs[key] = data
                 except ValueError:
                     pass
-    return confs
-
-def get_local_confs():
-    conf_file = os.path.expanduser("~/.pkginfo")
-    confs = {}
-    if os.path.isfile(conf_file):
-        with open(conf_file, "r") as f:
-            lines = f.readlines()
-        for l in lines:
-            if l.find("#") != 0:
-                try:
-                    (d1, d2) = l.strip().split("=")
-                    key = d1.strip("' ")
-                    data = d2.strip("' ")
-                    if data == "True":
-                      data = True
-                    elif data == "False":
-                      data = False
-                    confs[key] = data
-                except ValueError:
-                    pass
-    return confs
-
-def get_param_confs():
-    param = get_args()
-    confs = {}
-    if param.verbose:
-        confs["VERBOSE"] = True
-    if param.url:
-        confs["URL"] = param.url
-    if param.download:
-        confs["DOWNLOAD"] = "linear"
-    if param.dlsubdir:
-        confs["DOWNLOAD"] = "subdir"
-    if param.downtodir:
-        confs["DOWNTODIR"] = param.downtodir
-    if param.category:
-        confs["CATEGORY"] = param.category
-    if not param.blocklist:
-        confs["BLOCKLIST"] = False
-    if param.localblock:
-        confs["LOCALBLOCK"] = param.localblock
-    if param.autoinstall:
-        confs["INSTALL"] = "auto"
-    if param.interactive:
-        confs["INSTALL"] = "manual"
-    if param.reverse:
-        confs["REVERSE"] = True
     return confs
 
 def get_confs():
-    system_confs = get_system_confs()
-    local_confs = get_local_confs()
-    param_confs = get_param_confs()
-    # defaults configs
-    confs = {"VERBOSE": False,
-            "URL": "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/",
-            "DOWNLOAD": "",
-            "DOWNTODIR": "",
-            "CATEGORY": "",
-            "BLOCKLIST": True,
-            "INSTALL": "",
-            "REVERSE": False}
+    param = get_args()
+    confs = {}
+    confs["VERBOSE"] = True if param.verbose else False
+    confs["URL"] = param.url if param.url \
+            else "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/"
+    confs["DOWNLOAD"] = "linear" if param.download else ""
+    confs["DOWNLOAD"] = "subdir" if param.dlsubdir else ""
+    confs["DOWNTODIR"] = param.downtodir if param.downtodir else ""
+    confs["CATEGORY"] = param.category if param.category else ""
+    confs["BLOCKLIST"] = False if not param.blocklist else True
+    confs["LOCALBLOCK"] = param.localblock if param.localblock else ""
+    confs["INSTALL"] = "auto" if param.autoinstall else ""
+    confs["INSTALL"] = "manual" if param.interactive else ""
+    confs["REVERSE"] = True if param.reverse else False
     """
     各種設定は，
     引数 > ローカル(~/.pkginfo) > システム(/etc/pkginfo.conf)
     の順に評価する．
     """
+    loc_confs = get_file_confs(os.path.expanduser("~/.pkginfo"))
+    sys_confs = get_file_confs("/etc/pkginfo.conf")
     for i in confs.keys():
-        if i in param_confs:
-            confs[i] = param_confs[i]
-        elif i in local_confs:
-            confs[i] = local_confs[i]
-        elif i in system_confs:
-            confs[i] = system_confs[i]
-
+        if i in loc_confs:
+            confs[i] = loc_confs[i]
+        elif i in sys_confs:
+            confs[i] = sys_confs[i]
     """
     ローカルでブロックしたいパッケージは追加する方が便利だろう．
     """
-    confs["LOCALBLOCK"] = ""
-    try:
-        system_confs["LOCALBLOCK"]
-        confs["LOCALBLOCK"] = \
-                confs["LOCALBLOCK"] + " " + system_confs["LOCALBLOCK"]
-    except KeyError:
-        pass
-    try:
-        local_confs["LOCALBLOCK"]
-        confs["LOCALBLOCK"] = \
-                confs["LOCALBLOCK"] + " " + local_confs["LOCALBLOCK"]
-    except KeyError:
-        pass
-    try:
-        param_confs["LOCALBLOCK"]
-        confs["LOCALBLOCK"] = \
-                confs["LOCALBLOCK"] + " " + param_confs["LOCALBLOCK"]
-    except KeyError:
-        pass
+    confs["LOCALBLOCK"] = param.localblock if param.localblock else ""
+    if "LOCALBLOCK" in loc_confs:
+        confs["LOCALBLOCK"] += " " + loc_confs["LOCALBLOCK"]
+    if "LOCALBLOCK" in sys_confs:
+        confs["LOCALBLOCK"] += " " + sys_confs["LOCALBLOCK"]
     """
     confs["INSTALL"] が指定されていれば sudo する旨を警告する．
     """
