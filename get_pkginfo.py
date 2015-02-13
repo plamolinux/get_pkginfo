@@ -190,6 +190,33 @@ def rev_replaces(replaces):
         rev_list[replaces[i]] = i
     return rev_list
 
+def get_category(pkgs, confs):
+    if confs["CATEGORY"]:
+        if confs["CATEGORY"] == "all":
+            category = ["00_base", "01_minimum", "02_x11", "03_xclassics",
+                    "04_xapps", "05_ext", "06_xfce", "07_kde", "08_tex",
+                    "09_kernel", "10_lof", "11_mate"]
+        else:
+            category = []
+            for i in confs["CATEGORY"].split():
+                category.append(i)
+        return category
+    """
+    各カテゴリの代表的なパッケージのリスト．これらのパッケージがインス
+    トール済みならば，そのカテゴリは選択されていたと考える．
+    """
+    category = ["00_base"]
+    reps = {"01_minimum": "gcc",      "02_x11": "xorg_server",
+            "03_xclassics": "kterm",  "04_xapps": "firefox",
+            "05_ext": "mplayer",      "06_xfce": "xfwm4",
+            "07_kde": "kde_baseapps", "08_tex": "ptexlive",
+            "09_kernel": "kernelsrc", "10_lof": "libreoffice_base",
+            "11_mate": "mate_desktop"}
+    for i in sorted(reps.keys()):
+        if reps[i] in pkgs:
+            category.append(i)
+    return category
+
 def download_pkg(url, subdir, confs):
     hname = url.split("/")[2]
     pname = "/".join(url.split("/")[3:-1])
@@ -257,55 +284,6 @@ def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
     print("invoking: {}".format(cmd))
     return subprocess.check_call(cmd.split())
 
-def make_catlist(pkgs):
-    """
-    00_base から 11_mate までの各カテゴリーに含まれるパッケージの
-    basename を
-    catlist["02_x11"] = ["IPAexfont", "IPAfont", "MesaLib", ...]
-    のような辞書型のデータ catlist に収める処理
-    """
-    catlist = {}
-    for i in pkgs:
-        if i in ["__blockpkgs", "__replaces", "__no_install"]:
-            continue
-        try:
-            (ver, p_arch, build, ext, path) = pkgs[i]
-        except:
-            print("remote key: {} have illegal data: {}".format(i, pkgs[i]))
-        else:
-            cat = path.split("/")[2]
-            tmp_list = catlist[cat] if cat in catlist else []
-            tmp_list.append(i)
-            catlist[cat] = tmp_list
-    return catlist
-
-def get_local_category(pkgs, confs):
-    if confs["CATEGORY"]:
-        category = []
-        for i in confs["CATEGORY"].split():
-            category.append(i)
-        return category
-    """
-    各カテゴリの代表的なパッケージのリスト．これらのパッケージがインス
-    トール済みならば，そのカテゴリは選択されていたと考える．
-    """
-    category = ["00_base"]
-    reps = {"01_minimum": "gcc",
-            "02_x11": "xorg_server",
-            "03_xclassics": "kterm",
-            "04_xapps": "firefox",
-            "05_ext": "mplayer",
-            "06_xfce": "xfwm4",
-            "07_kde": "kde_baseapps",
-            "08_tex": "ptexlive",
-            "09_kernel": "kernelsrc",
-            "10_lof": "libreoffice_base",
-            "11_mate": "mate_desktop"}
-    for i in sorted(reps.keys()):
-        if reps[i] in pkgs:
-            category.append(i)
-    return category
-
 def main():
     confs = get_confs()
     """
@@ -351,22 +329,27 @@ def main():
     """
     check_pkgs = check_replaces(local_pkgs, ftp_pkgs["__replaces"])
     rev_list = rev_replaces(ftp_pkgs["__replaces"])
-    need_update = []
+    category = get_category(local_pkgs, confs)
+    need_install = []
     for i in ftp_pkgs.keys():
         if i in ["__blockpkgs", "__replaces", "__no_install"]:
             continue
-        if check_pkgs.has_key(i):
-            (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-            if check_pkgs[i] == (ver, p_arch, build):
-                continue
+        (ver, p_arch, build, ext, path) = ftp_pkgs[i]
+        if not (path.split("/")[2] in category or check_pkgs.has_key(i)):
+            continue
+        if not check_pkgs.has_key(i) or check_pkgs[i] != (ver, p_arch, build):
             pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
             path_list = "{}/{}".format(path, pkgname).split("/")[2:]
-            need_update.append((path_list, path, pkgname))
-    for i in sorted(need_update):
+            need_install.append((path_list, path, pkgname))
+    for i in sorted(need_install):
         base = i[2].split("-")[0]
         (ver, p_arch, build, ext, path) = ftp_pkgs[base]
-        (local_ver, local_arch, local_build) = check_pkgs[base]
-        if base in rev_list:
+        if not check_pkgs.has_key(base):
+            pkgname = "{}-{}-{}-{}".format(base, ver, p_arch, build)
+            print("** {} should be a new package in {} category."
+                    .format(pkgname, path.split("/")[2]))
+        elif base in rev_list:
+            (local_ver, local_arch, local_build) = check_pkgs[base]
             print("** local package: {}-{}-{}-{} was renamed to"
                     .format(rev_list[base], local_ver, local_arch, local_build))
             print("** new   package: {}-{}-{}-{}".format(base, ver, p_arch,
@@ -375,6 +358,7 @@ def main():
                     "(# removepkg {}) to update new one."
                     .format(rev_list[base]))
         else:
+            (local_ver, local_arch, local_build) = check_pkgs[base]
             print("local package: {}-{}-{}-{}"
                     .format(base, local_ver, local_arch, local_build))
             print("new   package: {}-{}-{}-{}"
@@ -389,38 +373,6 @@ def main():
             if mwd != cwd:
                 os.chdir(cwd)
         print("")
-    """
-    新しく追加されたパッケージをチェックする．cat_list{} は，FTP サーバ
-    上にあるパッケージを，カテゴリをキーにして，そのカテゴリーに属する
-    パッケージのリストを value に持った辞書型データ
-    (cat_list["01_minimum"] =
-            ["FDclone", "alsa_lib", "alsa_plugins", "alsa_utils", ...])
-    intalled_category[] は，インストール時に選択したカテゴリのリスト．
-    (["00_base", "01_minimum", "02_x11", "03_xclassics", ...])
-    installed_category[] に従って，cat_list{} にあるそのカテゴリのパッ
-    ケージを調べ，ローカルにインストールされていないものがあれば表示す
-    る．
-    """
-    cat_list = make_catlist(ftp_pkgs)
-    installed_category = get_local_category(local_pkgs, confs)
-    for i in installed_category:
-        for j in sorted(cat_list[i]):
-            if j in local_pkgs:
-                continue
-            (ver, p_arch, build, ext, path) = ftp_pkgs[j]
-            pkgname = "{}-{}-{}-{}.{}".format(j, ver, p_arch, build, ext)
-            print("** {} should be a new package in {} category."
-                    .format(pkgname, i))
-            url2 = "{}{}/{}".format(confs["URL"], path, pkgname)
-            print("URL: {}".format(url2))
-            if confs["DOWNLOAD"]:
-                cwd = os.getcwd()
-                mwd = download_pkg(url2, "/".join(path.split("/")[2:]), confs)
-                if confs["INSTALL"]:
-                    print(install_pkg(pkgname, ftp_pkgs, rev_list, confs))
-                if mwd != cwd:
-                    os.chdir(cwd)
-            print("")
 
 if __name__ == "__main__":
     main()
