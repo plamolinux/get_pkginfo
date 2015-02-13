@@ -52,7 +52,7 @@ DOWNLOAD   : ダウンロードしたパッケージの格納方法を linear か subdir に
 DOWNTODIR  : ダウンロードしたパッケージの置き場所(要書き込みパーミッシ
              ョン)(ex: /var/Newpkgs)．
 CATEGORY   : インストールしたカテゴリに関わらずチェックしたいカテゴリを
-             指定する．
+             指定する．all を指定した場合，全カテゴリをチェックする．
 LOCALBLOCK : ブロックしたいパッケージ名．一行にベース名をスペース区切り
              で連ねて書く(ex: man man_db ffmpeg mplayer)．
 INSTALL    : 自動インストールのモードを auto か manual にする．manual
@@ -130,7 +130,8 @@ REVERSE    : False
 -o/--downtodir   : パッケージをセーブする先のディレクトリを指定する．
 
 -c/--category    : インストールしたカテゴリに関わらずチェックしたいカテ
-                   ゴリを指定する．
+                   ゴリを指定する．all を指定した場合，全カテゴリをチェ
+                   ックする．
 
 -b/--blocklist   : ブロックリスト機能をオフにする(デフォルトオン)．
 
