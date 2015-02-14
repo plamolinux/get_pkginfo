@@ -17,23 +17,23 @@ optional arguments:
   -o DOWNTODIR, --downtodir DOWNTODIR
                         directory to save package(s)
   -c CATEGORY, --category CATEGORY
-                        set category(s) to check
+                        set category(ies) to check
   -b, --blocklist       ignore block list
   -l LOCALBLOCK, --localblock LOCALBLOCK
                         set pkgname(s) to block
   -a, --autoinstall     install downloaded package(s) automatically
   -i, --interactive     install downloaded package(s) interactively
-  -r, --reverse         find un-installed package(s)
+  -r, --reverse         find un-selected package(s)
 ```
 
 ```
 ○get_pkginfo コマンドの設定ファイル
 
-/etc/pkginfo.conf : システムレベルで常に設定したい項目を指定する．
 ~/.pkginfo        : 個人レベルで設定したい項目を指定する．
+/etc/pkginfo.conf : システムレベルで常に設定したい項目を指定する．
 
-/etc/pkginfo.conf，~/.pkginfoの順に設定ファイルを読み込み．指定した項目
-は後者が優先される．
+~/.pkginfo，/etc/pkginfo.conf の順にパースし，指定した項目は前者が優先
+される．
 
 [検討事項]
 
@@ -70,43 +70,45 @@ ex1:
 URL = ftp://plamo.linet.gr.jp/pub/Plamo-5.x/
 DOWNLOAD = subdir
 DOWNTODIR = /var/Newpkgs
-CATEGORY = ''
+CATEGORY = ""
 BLOCKLIST = True
 LOCALBLOCK = man man_db ffmpeg
-INSTALL = ''
+INSTALL = ""
 REVERSE = False
 
 ex2:
 CATEGORY = 00_base 03_xclassics 05_ext
-LOCALBLOCK = 'man man_db ffmpeg'
+LOCALBLOCK = "man man_db ffmpeg"
 INSTALL = manual
 
 設定ファイルのパースは
 
-if l.find("#") != 0:
+if not l.startswith("#"):
     try:
-        (d1, d2) = l.strip().split("=")
-        key = d1.strip("' ")
-        data = d2.strip("' ")
-        confs[key] = data
+        (key, val) = l.strip().split("=")
     except ValueError:
         pass
+    else:
+        key = key.strip(" \"'")
+        val = val.strip(" \"'")
+        confs[key] = True if val == "True" \
+                else False if val == "False" else val
 
 くらいしかしてないので，行頭に "#" があればコメントとして無視，"=" で区
 切られた2つの項目を key と data として読み込むので，data 部はクォートし
-なくても複数の項目を書ける(' も strip はするのでクォートしてもいい)．
+なくても複数の項目を書ける(" ' も strip はするのでクォートしてもいい)．
 
 指定しなかった項目は，スクリプトに埋めこんだ以下のデフォルト値が使われ
 る．
 
 VERBOSE    : False (未実装)
 URL        : ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/
-DOWNLOAD   : '' (ダウンロードしない)
-DOWNTODIR  : '' (= cwd)
-CATEGORY   : '' (無し)
+DOWNLOAD   : "" (ダウンロードしない)
+DOWNTODIR  : "" (= cwd)
+CATEGORY   : "" (無し)
 BLOCKLIST  : True
-LOCALBLOCK : '' (無し)
-INSTALL    : '' (自動インストールしない)
+LOCALBLOCK : "" (無し)
+INSTALL    : "" (自動インストールしない)
 REVERSE    : False
 
 ○引数による指定
