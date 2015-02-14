@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument("-o", "--downtodir",
             help="directory to save package(s)")
     parser.add_argument("-c", "--category",
-            help="set category(s) to check")
+            help="set category(ies) to check")
     parser.add_argument("-b", "--blocklist", action="store_false",
             help="ignore block list")
     parser.add_argument("-l", "--localblock",
@@ -39,34 +39,32 @@ def get_file_confs(conf_file):
         with open(conf_file, "r") as f:
             lines = f.readlines()
         for l in lines:
-            if l.find("#") != 0:
+            if not l.startswith("#"):
                 try:
-                    (d1, d2) = l.strip().split("=")
-                    key = d1.strip("' ")
-                    data = d2.strip("' ")
-                    if data == "True":
-                      data = True
-                    elif data == "False":
-                      data = False
-                    confs[key] = data
+                    (key, val) = l.strip().split("=")
                 except ValueError:
                     pass
+                else:
+                    key = key.strip(" \"'")
+                    val = val.strip(" \"'")
+                    confs[key] = True if val == "True" \
+                            else False if val == "False" else val
     return confs
 
 def get_confs():
     param = get_args()
     confs = {}
-    confs["VERBOSE"] = True if param.verbose else False
-    confs["URL"] = param.url if param.url \
+    confs["VERBOSE"]    = True             if param.verbose     else False
+    confs["URL"]        = param.url        if param.url \
             else "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/"
-    confs["DOWNLOAD"] = "linear" if param.download else ""
-    confs["DOWNLOAD"] = "subdir" if param.dlsubdir else ""
-    confs["DOWNTODIR"] = param.downtodir if param.downtodir else ""
-    confs["CATEGORY"] = param.category if param.category else ""
-    confs["BLOCKLIST"] = False if not param.blocklist else True
-    confs["LOCALBLOCK"] = param.localblock if param.localblock else ""
-    confs["INSTALL"] = "auto" if param.autoinstall else ""
-    confs["INSTALL"] = "manual" if param.interactive else ""
+    confs["DOWNLOAD"]   = "linear"         if param.download    else ""
+    confs["DOWNLOAD"]   = "subdir"         if param.dlsubdir    else ""
+    confs["DOWNTODIR"]  = param.downtodir  if param.downtodir   else ""
+    confs["CATEGORY"]   = param.category   if param.category    else ""
+    confs["BLOCKLIST"]  = True             if param.blocklist   else False
+    confs["LOCALBLOCK"] = param.localblock if param.localblock  else ""
+    confs["INSTALL"]    = "auto"           if param.autoinstall else ""
+    confs["INSTALL"]    = "manual"         if param.interactive else ""
     """
     各種設定は，
     引数 > ローカル(~/.pkginfo) > システム(/etc/pkginfo.conf)
