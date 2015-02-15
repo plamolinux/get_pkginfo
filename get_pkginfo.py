@@ -158,28 +158,17 @@ def get_category(pkgs, confs):
             category.append(i)
     return category
 
-def download_pkg(url, subdir, confs):
-    hname = url.split("/")[2]
-    pname = "/".join(url.split("/")[3:-1])
-    fname = url.split("/")[-1]
-    print("downloading: {}".format(fname))
-    if confs["DOWNTODIR"]:
-        if not os.path.isdir(confs["DOWNTODIR"]):
-            os.makedirs(confs["DOWNTODIR"])
-        os.chdir(confs["DOWNTODIR"])
-    if confs["DOWNLOAD"] == "subdir":
-        if not os.path.isdir(subdir):
-            os.makedirs(subdir)
-        os.chdir(subdir)
-    ftp = ftplib.FTP(hname)
+def download_file(host, path, file):
+    print("downloading: {}".format(file))
+    ftp = ftplib.FTP(host)
     ftp.login()
-    ftp.cwd(pname)
+    ftp.cwd(path)
     count = [0]
     ftp.sendcmd("TYPE I")
-    fsize = ftp.size(fname)
+    fsize = ftp.size(file)
     sys.stdout.write("[ %10d / %10d ]" % (0, fsize))
     sys.stdout.flush()
-    with open(fname, "w") as f:
+    with open(file, "w") as f:
         def callback(block):
             f.write(block)
             if count[0] < fsize:
@@ -188,13 +177,42 @@ def download_pkg(url, subdir, confs):
                 count[0] = fsize
             sys.stdout.write("\r[ %10d / %10d ]" % (count[0], fsize))
             sys.stdout.flush()
-        ftp.retrbinary("RETR %s" % fname, callback, blocksize=1024)
+        ftp.retrbinary("RETR %s" % file, callback, blocksize=1024)
     sys.stdout.write("\n")
-    resp = ftp.sendcmd("MDTM %s" % fname)
+    resp = ftp.sendcmd("MDTM %s" % file)
     ftp.quit()
     dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
     mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
-    os.utime(fname, (mtime, mtime))
+    os.utime(file, (mtime, mtime))
+
+def prepare_subdir(host, basedir, subdir):
+    for dir in subdir.split("/"):
+        basedir += "/" + dir
+        if not os.path.isdir(dir):
+            os.makedirs(dir)
+            os.chdir(dir)
+            if dir == subdir.split("/")[0]:
+                cat = dir[3:]
+            else:
+                cat = dir[:-4]
+            download_file(host, basedir, "disk" + cat)
+            download_file(host, basedir, "edisk" + cat)
+        else:
+            os.chdir(dir)
+
+def download_pkg(url, path, pkgname, confs):
+    host = url.split("/")[2]
+    basedir = "/".join(url.split("/")[3:]) + "/".join(path.split("/")[:2])
+    subdir = "/".join(path.split("/")[2:])
+    if confs["DOWNTODIR"]:
+        if not os.path.isdir(confs["DOWNTODIR"]):
+            os.makedirs(confs["DOWNTODIR"])
+        os.chdir(confs["DOWNTODIR"])
+    if confs["DOWNLOAD"] == "subdir":
+        prepare_subdir(host, basedir, subdir)
+    for dir in subdir.split("/"):
+        basedir += "/" + dir
+    download_file(host, basedir, pkgname)
     return os.getcwd()
 
 def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
@@ -327,11 +345,10 @@ def main():
                     .format(base, local_ver, local_arch, local_build))
             print("new   package: {}-{}-{}-{}"
                     .format(base, ver, p_arch, build))
-        url2 = "{}{}/{}".format(confs["URL"], i[1], i[2])
-        print("URL: {}".format(url2))
+        print("URL: {}{}/{}".format(confs["URL"], i[1], i[2]))
         if confs["DOWNLOAD"]:
             cwd = os.getcwd()
-            mwd = download_pkg(url2, "/".join(i[0][:-1]), confs)
+            mwd = download_pkg(confs["URL"], i[1], i[2], confs)
             if confs["INSTALL"]:
                 print(install_pkg(i[2], ftp_pkgs, rev_list, confs))
             if mwd != cwd:
