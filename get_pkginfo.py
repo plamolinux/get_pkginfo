@@ -191,10 +191,7 @@ def prepare_subdir(host, basedir, subdir):
         if not os.path.isdir(dir):
             os.makedirs(dir)
             os.chdir(dir)
-            if dir == subdir.split("/")[0]:
-                cat = dir[3:]
-            else:
-                cat = dir[:-4]
+            cat = dir[3:] if dir == subdir.split("/")[0] else dir[:-4]
             download_file(host, basedir, "disk" + cat)
             download_file(host, basedir, "edisk" + cat)
         else:
