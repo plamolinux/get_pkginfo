@@ -4,7 +4,7 @@ Script to check and download the updated package
 
 ```
 usage: get_pkginfo.py [-h] [-v] [-u URL] [-d | -s] [-o DOWNTODIR]
-                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i]
+                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i] [-r]
 
 Plamo Linux update packages check and download
 
@@ -23,6 +23,7 @@ optional arguments:
                         set pkgname(s) to block
   -a, --autoinstall     install downloaded package(s) automatically
   -i, --interactive     install downloaded package(s) interactively
+  -r, --reverse         find un-selected package(s)
 ```
 
 ```
@@ -61,6 +62,7 @@ INSTALL    : 自動インストールのモードを auto か manual にする．manual
 以下の項目は True/False で指定．
 VERBOSE   : (未実装)
 BLOCKLIST : ブロックリスト機能の有無．
+REVERSE   : ローカルにインストールされていないパッケージを表示する．
 
 ○設定ファイル例
 
@@ -72,6 +74,7 @@ CATEGORY = ""
 BLOCKLIST = True
 LOCALBLOCK = man man_db ffmpeg
 INSTALL = ""
+REVERSE = False
 
 ex2:
 CATEGORY = 00_base 03_xclassics 05_ext
@@ -106,6 +109,7 @@ CATEGORY   : "" (無し)
 BLOCKLIST  : True
 LOCALBLOCK : "" (無し)
 INSTALL    : "" (自動インストールしない)
+REVERSE    : False
 
 ○引数による指定
 
@@ -142,4 +146,7 @@ INSTALL    : "" (自動インストールしない)
 -a/--autoinstall : 自動インストールモードを auto にする(-i と排他)．
 
 -i/--interactive : 自動インストールモードを manual にする(-a と排他)．
+
+-r/--reverse     : ローカルにインストールされていないパッケージを表示す
+                   る．
 ```

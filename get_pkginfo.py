@@ -31,6 +31,8 @@ def get_args():
             help="install downloaded package(s) automatically")
     megrp2.add_argument("-i", "--interactive", action="store_true",
             help="install downloaded package(s) interactively")
+    parser.add_argument("-r", "--reverse", action="store_true",
+            help="find un-selected package(s)")
     return parser.parse_args()
 
 def get_file_confs(conf_file):
@@ -65,6 +67,7 @@ def get_confs():
     confs["LOCALBLOCK"] = param.localblock if param.localblock  else ""
     confs["INSTALL"]    = "auto"           if param.autoinstall else ""
     confs["INSTALL"]    = "manual"         if param.interactive else ""
+    confs["REVERSE"]    = True             if param.reverse     else False
     """
     各種設定は，
     引数 > ローカル(~/.pkginfo) > システム(/etc/pkginfo.conf)
@@ -265,7 +268,7 @@ def main():
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
     """
-    if confs["BLOCKLIST"]:
+    if confs["BLOCKLIST"] and not confs["REVERSE"]:
         for bp in ftp_pkgs["__blockpkgs"]:
             if bp in local_pkgs:
                 del(local_pkgs[bp])
@@ -282,6 +285,29 @@ def main():
     """
     check_pkgs = check_replaces(local_pkgs, ftp_pkgs["__replaces"])
     rev_list = rev_replaces(ftp_pkgs["__replaces"])
+    if confs["REVERSE"]:
+        not_installed = []
+        for i in ftp_pkgs.keys():
+            if i in ["__blockpkgs", "__replaces", "__no_install"]:
+                continue
+            if not check_pkgs.has_key(i):
+                (ver, p_arch, build, ext, path) = ftp_pkgs[i]
+                pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
+                path_list = "{}/{}".format(path, pkgname).split("/")[2:]
+                not_installed.append((path_list, path, pkgname))
+        print("un-selected package(s):")
+        """
+        カテゴリー別に，カテゴリー内のパッケージを Plamo インストーラが
+        インストールする順番にソートして表示する．
+        """
+        print("category: {}".format(sorted(not_installed)[0][0][0]))
+        ct_prev = sorted(not_installed)[0][0][0]
+        for i in sorted(not_installed):
+            if i[0][0] != ct_prev:
+                print("category: {}".format(i[0][0]))
+            ct_prev = i[0][0]
+            print("\t{}".format("/".join(i[0][1:])))
+        return
     category = get_category(local_pkgs, confs)
     need_install = []
     for i in ftp_pkgs.keys():
