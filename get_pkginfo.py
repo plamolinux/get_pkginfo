@@ -59,14 +59,14 @@ def get_confs():
     confs["VERBOSE"]    = True             if param.verbose     else False
     confs["URL"]        = param.url        if param.url \
             else "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/"
-    confs["DOWNLOAD"]   = "linear"         if param.download    else ""
-    confs["DOWNLOAD"]   = "subdir"         if param.dlsubdir    else ""
+    confs["DOWNLOAD"]   = "linear"         if param.download    else \
+                          "subdir"         if param.dlsubdir    else ""
     confs["DOWNTODIR"]  = param.downtodir  if param.downtodir   else ""
     confs["CATEGORY"]   = param.category   if param.category    else ""
     confs["BLOCKLIST"]  = True             if param.blocklist   else False
     confs["LOCALBLOCK"] = param.localblock if param.localblock  else ""
-    confs["INSTALL"]    = "auto"           if param.autoinstall else ""
-    confs["INSTALL"]    = "manual"         if param.interactive else ""
+    confs["INSTALL"]    = "auto"           if param.autoinstall else \
+                          "manual"         if param.interactive else ""
     confs["REVERSE"]    = True             if param.reverse     else False
     """
     各種設定は，
