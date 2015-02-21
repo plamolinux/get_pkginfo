@@ -2,7 +2,7 @@
 # -*- coding: euc-jp -*-
 
 import argparse, os, sys, subprocess, pickle, urllib2
-import ftplib, datetime, time
+import urllib, time, ftplib
 
 PKG_PATH = "/var/log/packages/"
 
@@ -158,19 +158,42 @@ def get_category(pkgs, confs):
             category.append(i)
     return category
 
-def download_file(host, path, file):
-    print("downloading: {}".format(file))
+def download_file_url(url, file):
+    opener = urllib.FancyURLopener()
+    fi = opener.open(url)
+    for l in str(fi.info()).splitlines():
+        if "content-length: " in l.lower():
+            fsize = int(l[16:])
+        elif "last-modified: " in l.lower():
+            mtime = l[15:]
+    count = 0
+    data = fi.read(1024)
+    sys.stdout.write("[ %10d / %10d ]" % (0, fsize))
+    sys.stdout.flush()
+    with open(file, "w") as fo:
+        while data:
+            fo.write(data)
+            count += len(data)
+            data = fi.read(1024)
+            sys.stdout.write("\r[ %10d / %10d ]" % (count, fsize))
+            sys.stdout.flush()
+    sys.stdout.write("\n")
+    fi.close()
+    return time.strptime(mtime, "%a, %d %b %Y %H:%M:%S GMT")
+
+def download_file_ftp(host, path, file):
     ftp = ftplib.FTP(host)
     ftp.login()
     ftp.cwd(path)
-    count = [0]
     ftp.sendcmd("TYPE I")
     fsize = ftp.size(file)
+    mtime = ftp.sendcmd("MDTM %s" % file)[4:18]
+    count = [0]
     sys.stdout.write("[ %10d / %10d ]" % (0, fsize))
     sys.stdout.flush()
-    with open(file, "w") as f:
-        def callback(block):
-            f.write(block)
+    with open(file, "w") as fo:
+        def callback(data):
+            fo.write(data)
             if count[0] < fsize:
                 count[0] += 1024
             if count[0] > fsize:
@@ -179,37 +202,41 @@ def download_file(host, path, file):
             sys.stdout.flush()
         ftp.retrbinary("RETR %s" % file, callback, blocksize=1024)
     sys.stdout.write("\n")
-    resp = ftp.sendcmd("MDTM %s" % file)
     ftp.quit()
-    dt = datetime.datetime.strptime(resp[4:18], "%Y%m%d%H%M%S")
-    mtime = time.mktime((dt + datetime.timedelta(hours=9)).timetuple())
+    return time.strptime(mtime, "%Y%m%d%H%M%S")
+
+def download_file(urlbase, subpath, file):
+    print("downloading: {}".format(file))
+    if urlbase.split(":")[0] == "ftp":
+        path = "/".join(urlbase.split("/")[3:]) + "/".join(subpath.split("/"))
+        st = download_file_ftp(urlbase.split("/")[2], path, file)
+    else:
+        st = download_file_url("{}{}/{}".format(urlbase, subpath, file), file)
+    mtime = time.mktime(st) - time.timezone
     os.utime(file, (mtime, mtime))
 
-def prepare_subdir(host, basedir, subdir):
+def prepare_subdir(urlbase, topdir, subdir):
     for dir in subdir.split("/"):
-        basedir += "/" + dir
+        topdir += "/" + dir
         if not os.path.isdir(dir):
             os.makedirs(dir)
             os.chdir(dir)
             cat = dir[3:] if dir == subdir.split("/")[0] else dir[:-4]
-            download_file(host, basedir, "disk" + cat)
-            download_file(host, basedir, "edisk" + cat)
+            download_file(urlbase, topdir, "disk" + cat)
+            download_file(urlbase, topdir, "edisk" + cat)
         else:
             os.chdir(dir)
 
-def download_pkg(url, path, pkgname, confs):
-    host = url.split("/")[2]
-    basedir = "/".join(url.split("/")[3:]) + "/".join(path.split("/")[:2])
-    subdir = "/".join(path.split("/")[2:])
+def download_pkg(urlbase, subpath, pkgname, confs):
     if confs["DOWNTODIR"]:
         if not os.path.isdir(confs["DOWNTODIR"]):
             os.makedirs(confs["DOWNTODIR"])
         os.chdir(confs["DOWNTODIR"])
     if confs["DOWNLOAD"] == "subdir":
-        prepare_subdir(host, basedir, subdir)
-    for dir in subdir.split("/"):
-        basedir += "/" + dir
-    download_file(host, basedir, pkgname)
+        topdir = "/".join(subpath.split("/")[:2])
+        subdir = "/".join(subpath.split("/")[2:])
+        prepare_subdir(urlbase, topdir, subdir)
+    download_file(urlbase, subpath, pkgname)
     return os.getcwd()
 
 def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
