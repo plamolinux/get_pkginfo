@@ -221,7 +221,10 @@ def prepare_subdir(urlbase, topdir, subdir):
         if not os.path.isdir(dir):
             os.makedirs(dir)
             os.chdir(dir)
-            cat = dir[3:] if dir == subdir.split("/")[0] else dir[:-4]
+            if dir == subdir.split("/")[0]:
+                cat = dir[3:] if "_" in dir else dir
+            else:
+                cat = dir[:-4] if "." in dir else dir
             download_file(urlbase, topdir, "disk" + cat)
             download_file(urlbase, topdir, "edisk" + cat)
         else:
