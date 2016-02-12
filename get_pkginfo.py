@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 # -*- coding: euc-jp -*-
 
-import argparse, os, sys, subprocess, pickle, urllib2
+import argparse, os, subprocess, re, sys, pickle, urllib2
 import urllib, time, ftplib
 
 PKG_PATH = "/var/log/packages/"
@@ -35,11 +35,30 @@ def get_args():
             help="find un-selected package(s)")
     return parser.parse_args()
 
+def get_url():
+    baseurl = "http://repository.plamolinux.org/pub/linux/Plamo/"
+    current = "6.x"
+    if os.path.isfile("/etc/plamo-release"):
+        # format: Plamo Linux release x.y
+        info = open("/etc/plamo-release", "r").readline()
+        version = info.split(" ")[-1].strip()
+    elif os.path.isdir("/usr/lib/setup"):
+        # format: /usr/lib/setup/Plamo-x.y
+        info = sorted(os.listdir("/usr/lib/setup"))
+        version = info[-1].split("-")[-1]
+    else:
+        print("Cannot find valid version tag.  "
+                "Suppose you use Plamo current({})".format(current))
+        version = current
+    arch = subprocess.check_output("uname -m".split()).strip()
+    arch = "x86" if arch == "i686" else "arm" if arch == "armv7l" else arch
+    url = baseurl + "Plamo-" + re.sub("\..*", ".x", version) + "/" + arch + "/"
+    return url
+
 def get_file_confs(conf_file):
     confs = {}
     if os.path.isfile(conf_file):
-        with open(conf_file, "r") as f:
-            lines = f.readlines()
+        lines = open(conf_file, "r").readlines()
         for l in lines:
             if not l.startswith("#"):
                 try:
@@ -57,8 +76,8 @@ def get_confs():
     param = get_args()
     confs = {}
     confs["VERBOSE"]    = True             if param.verbose     else False
-    confs["URL"]        = param.url        if param.url \
-            else "ftp://ring.yamanashi.ac.jp/pub/linux/Plamo/Plamo-5.x/"
+    confs["URL"]        = param.url        if param.url         else get_url()
+    confs["URL"] += "/" if not confs["URL"].endswith("/")       # 念のため
     confs["DOWNLOAD"]   = "linear"         if param.download    else \
                           "subdir"         if param.dlsubdir    else ""
     confs["DOWNTODIR"]  = param.downtodir  if param.downtodir   else ""
@@ -101,10 +120,6 @@ def get_confs():
         confs["DOWNLOAD"] = "subdir"
     return confs
 
-def get_arch():
-    arch = subprocess.check_output("uname -m".split()).strip()
-    return "x86" if arch == "i686" else arch
-
 def get_local_pkgs():
     pkglist = {}
     for file in os.listdir(PKG_PATH):
@@ -113,9 +128,8 @@ def get_local_pkgs():
         pkglist[base] = (vers, p_arch, build)
     return pkglist
 
-def get_ftp_pkgs(arch, confs):
-    url = confs["URL"] + "allpkgs_" + arch + ".pickle"
-    return pickle.load(urllib2.urlopen(url))
+def get_ftp_pkgs(confs):
+    return pickle.load(urllib2.urlopen(confs["URL"] + "allpkgs.pickle"))
 
 def check_replaces(orig_list, replaces):
     for ck in replaces.keys():
@@ -273,13 +287,11 @@ def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
 def main():
     confs = get_confs()
     """
-    my_arch: この環境の arch 名(x86/x86_64)
     local_pkgs: この環境にインストール済みパッケージのリスト
     ftp_pkgs: FTPサーバ上にあるパッケージのリスト
     """
-    my_arch = get_arch()
     local_pkgs = get_local_pkgs()
-    ftp_pkgs = get_ftp_pkgs(my_arch, confs)
+    ftp_pkgs = get_ftp_pkgs(confs)
     """
     -b オプションを指定してブロックリストを解除した場合も，非インストー
     ルリスト(ftp_pkgs["__no_install"])は有効であるべきなので，システム
@@ -344,8 +356,12 @@ def main():
         if i in ["__blockpkgs", "__replaces", "__no_install"]:
             continue
         (ver, p_arch, build, ext, path) = ftp_pkgs[i]
-        if not (path.split("/")[2] in category or check_pkgs.has_key(i)):
-            continue
+        if confs["CATEGORY"]:
+            if path.split("/")[2] not in category:
+                continue
+        else:
+            if not (path.split("/")[2] in category or check_pkgs.has_key(i)):
+                continue
         if not check_pkgs.has_key(i) or check_pkgs[i] != (ver, p_arch, build):
             pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
             path_list = "{}/{}".format(path, pkgname).split("/")[2:]
