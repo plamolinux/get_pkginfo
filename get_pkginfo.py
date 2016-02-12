@@ -77,7 +77,8 @@ def get_confs():
     confs = {}
     confs["VERBOSE"]    = True             if param.verbose     else False
     confs["URL"]        = param.url        if param.url         else get_url()
-    confs["URL"] += "/" if not confs["URL"].endswith("/")       # 念のため
+    if not confs["URL"].endswith("/"):
+        confs["URL"] += "/"     # 念のため
     confs["DOWNLOAD"]   = "linear"         if param.download    else \
                           "subdir"         if param.dlsubdir    else ""
     confs["DOWNTODIR"]  = param.downtodir  if param.downtodir   else ""
