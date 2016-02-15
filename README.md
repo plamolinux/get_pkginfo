@@ -45,7 +45,7 @@ optional arguments:
 ○設定項目
 
 URL        : チェック/ダウンロード先の URL
-             (ex: ftp://plamo.linet.gr.jp/pub/Plamo-6.x/x86_64/)．
+             (ex: ftp://plamo.linet.gr.jp/pub/)．
 DOWNLOAD   : ダウンロードしたパッケージの格納方法を linear か subdir に
              する．linear の場合，単一のディレクトリに収める．subdir の
              場合，カテゴリごとのサブディレクトリに収める．
@@ -67,7 +67,7 @@ REVERSE   : ローカルにインストールされていないパッケージを表示する．
 ○設定ファイル例
 
 ex1:
-URL = ftp://plamo.linet.gr.jp/pub/Plamo-6.x/x86_64/
+URL = ftp://plamo.linet.gr.jp/pub/
 DOWNLOAD = subdir
 DOWNTODIR = /var/Newpkgs
 CATEGORY = ""
@@ -102,8 +102,7 @@ if not l.startswith("#"):
 る．
 
 VERBOSE    : False (未実装)
-URL        : http://repository.plamolinux.org/pub/linux/Plamo/{ver}/{arch}/
-             (Plamo バージョン{ver}/アーキ{arch}は自動判定)
+URL        : http://repository.plamolinux.org/pub/linux/Plamo/
 DOWNLOAD   : "" (ダウンロードしない)
 DOWNTODIR  : "" (= cwd)
 CATEGORY   : "" (無し)
@@ -122,8 +121,8 @@ REVERSE    : False
 -v/--verbose     : 出力を冗長にする(未実装)．
 
 -u/--url         : チェック/ダウンロード先の URL．
-                   ftp://plamo.linet.gr.jp/pub/Plamo-6.x/x86_64/ のよう
-                   に最後の "/" まで必要．
+                   ftp://plamo.linet.gr.jp/pub/ のように最後の "/" まで
+                   必要．
                    file:///cdrom/ のように，ローカルにマウントした DVD
                    を指定することも可能．
 

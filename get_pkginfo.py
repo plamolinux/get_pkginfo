@@ -35,8 +35,9 @@ def get_args():
             help="find un-selected package(s)")
     return parser.parse_args()
 
-def get_url():
-    baseurl = "http://repository.plamolinux.org/pub/linux/Plamo/"
+def url_completion(url):
+    if not url.endswith("/"):
+        url += "/"      # 念のため
     current = "6.x"
     if os.path.isfile("/etc/plamo-release"):
         # format: Plamo Linux release x.y
@@ -50,10 +51,18 @@ def get_url():
         print("Cannot find valid version tag.  "
                 "Suppose you use Plamo current({})".format(current))
         version = current
+    version = re.sub("\..*", ".x", version)
     arch = subprocess.check_output("uname -m".split()).strip()
     arch = "x86" if arch == "i686" else "arm" if arch == "armv7l" else arch
-    url = "{}Plamo-{}/{}/".format(baseurl, re.sub("\..*", ".x", version), arch)
-    return url
+    try:
+        urllib2.urlopen(url + "allpkgs.pickle").close()
+        return url
+    except urllib2.URLError:
+        try:
+            urllib2.urlopen(url + arch + "/allpkgs.pickle").close()
+            return url + arch + "/"
+        except urllib2.URLError:
+            return url + "Plamo-" + version + "/" + arch + "/"
 
 def get_file_confs(conf_file):
     confs = {}
@@ -76,9 +85,9 @@ def get_confs():
     param = get_args()
     confs = {}
     confs["VERBOSE"]    = True             if param.verbose     else False
-    confs["URL"]        = param.url        if param.url         else get_url()
-    if not confs["URL"].endswith("/"):
-        confs["URL"] += "/"     # 念のため
+    confs["URL"]        = param.url        if param.url         else \
+                          "http://repository.plamolinux.org/pub/linux/Plamo/"
+    confs["URL"] = url_completion(confs["URL"])
     confs["DOWNLOAD"]   = "linear"         if param.download    else \
                           "subdir"         if param.dlsubdir    else ""
     confs["DOWNTODIR"]  = param.downtodir  if param.downtodir   else ""
