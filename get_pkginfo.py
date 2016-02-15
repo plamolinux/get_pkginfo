@@ -52,7 +52,7 @@ def get_url():
         version = current
     arch = subprocess.check_output("uname -m".split()).strip()
     arch = "x86" if arch == "i686" else "arm" if arch == "armv7l" else arch
-    url = baseurl + "Plamo-" + re.sub("\..*", ".x", version) + "/" + arch + "/"
+    url = "{}Plamo-{}/{}/".format(baseurl, re.sub("\..*", ".x", version), arch)
     return url
 
 def get_file_confs(conf_file):
@@ -125,8 +125,12 @@ def get_local_pkgs():
     pkglist = {}
     for file in os.listdir(PKG_PATH):
         line = open(PKG_PATH + file, "r").readline()
-        (base, vers, p_arch, build) = line[18:].strip().split("-")
-        pkglist[base] = (vers, p_arch, build)
+        try:
+            (base, vers, p_arch, build) = line[18:].strip().split("-")
+        except ValueError:
+            pass
+        else:
+            pkglist[base] = (vers, p_arch, build)
     return pkglist
 
 def get_ftp_pkgs(confs):
@@ -336,7 +340,7 @@ def main():
             if not check_pkgs.has_key(i):
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
                 pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
-                path_list = "{}/{}".format(path, pkgname).split("/")[2:]
+                path_list = "{}/{}".format(path, pkgname).split("/")[1:]
                 not_installed.append((path_list, path, pkgname))
         print("un-selected package(s):")
         """
@@ -358,14 +362,14 @@ def main():
             continue
         (ver, p_arch, build, ext, path) = ftp_pkgs[i]
         if confs["CATEGORY"]:
-            if path.split("/")[2] not in category:
+            if path.split("/")[1] not in category:
                 continue
         else:
-            if not (path.split("/")[2] in category or check_pkgs.has_key(i)):
+            if not (path.split("/")[1] in category or check_pkgs.has_key(i)):
                 continue
         if not check_pkgs.has_key(i) or check_pkgs[i] != (ver, p_arch, build):
             pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
-            path_list = "{}/{}".format(path, pkgname).split("/")[2:]
+            path_list = "{}/{}".format(path, pkgname).split("/")[1:]
             need_install.append((path_list, path, pkgname))
     for i in sorted(need_install):
         base = i[2].split("-")[0]
@@ -373,7 +377,7 @@ def main():
         if not check_pkgs.has_key(base):
             pkgname = "{}-{}-{}-{}".format(base, ver, p_arch, build)
             print("** {} should be a new package in {} category."
-                    .format(pkgname, path.split("/")[2]))
+                    .format(pkgname, path.split("/")[1]))
         elif base in rev_list:
             (local_ver, local_arch, local_build) = check_pkgs[base]
             print("** local package: {}-{}-{}-{} was renamed to"
