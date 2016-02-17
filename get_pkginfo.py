@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 # -*- coding: euc-jp -*-
 
-import argparse, os, subprocess, re, sys, pickle, urllib2
+import argparse, os, re, subprocess, urllib2, sys, pickle
 import urllib, time, ftplib
 
 PKG_PATH = "/var/log/packages/"
@@ -35,6 +35,23 @@ def get_args():
             help="find un-selected package(s)")
     return parser.parse_args()
 
+def get_file_confs(conf_file):
+    confs = {}
+    if os.path.isfile(conf_file):
+        lines = open(conf_file, "r").readlines()
+        for l in lines:
+            if not l.startswith("#"):
+                try:
+                    (key, val) = l.strip().split("=")
+                except ValueError:
+                    pass
+                else:
+                    key = key.strip(" \"'")
+                    val = val.strip(" \"'")
+                    confs[key] = True if val == "True" \
+                            else False if val == "False" else val
+    return confs
+
 def url_completion(url):
     if not url.endswith("/"):
         url += "/"      # 念のため
@@ -64,30 +81,12 @@ def url_completion(url):
         except urllib2.URLError:
             return url + "Plamo-" + version + "/" + arch + "/"
 
-def get_file_confs(conf_file):
-    confs = {}
-    if os.path.isfile(conf_file):
-        lines = open(conf_file, "r").readlines()
-        for l in lines:
-            if not l.startswith("#"):
-                try:
-                    (key, val) = l.strip().split("=")
-                except ValueError:
-                    pass
-                else:
-                    key = key.strip(" \"'")
-                    val = val.strip(" \"'")
-                    confs[key] = True if val == "True" \
-                            else False if val == "False" else val
-    return confs
-
 def get_confs():
     param = get_args()
     confs = {}
     confs["VERBOSE"]    = True             if param.verbose     else False
     confs["URL"]        = param.url        if param.url         else \
                           "http://repository.plamolinux.org/pub/linux/Plamo/"
-    confs["URL"] = url_completion(confs["URL"])
     confs["DOWNLOAD"]   = "linear"         if param.download    else \
                           "subdir"         if param.dlsubdir    else ""
     confs["DOWNTODIR"]  = param.downtodir  if param.downtodir   else ""
@@ -109,6 +108,10 @@ def get_confs():
             confs[i] = loc_confs[i]
         elif i in sys_confs:
             confs[i] = sys_confs[i]
+    """
+    ローカルの Plamo バージョンとアーキ名を取得し，URL を補完する．
+    """
+    confs["URL"] = url_completion(confs["URL"])
     """
     ローカルでブロックしたいパッケージは追加する方が便利だろう．
     """
