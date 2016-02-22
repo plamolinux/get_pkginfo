@@ -267,8 +267,8 @@ def download_pkg(urlbase, subpath, pkgname, confs):
             os.makedirs(confs["DOWNTODIR"])
         os.chdir(confs["DOWNTODIR"])
     if confs["DOWNLOAD"] == "subdir":
-        topdir = "/".join(subpath.split("/")[:2])
-        subdir = "/".join(subpath.split("/")[2:])
+        topdir = "/".join(subpath.split("/")[:1])
+        subdir = "/".join(subpath.split("/")[1:])
         prepare_subdir(urlbase, topdir, subdir)
     download_file(urlbase, subpath, pkgname)
     return os.getcwd()
