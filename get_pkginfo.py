@@ -131,7 +131,7 @@ def get_confs():
     if confs["INSTALL"]:
         sys.stderr.write("You need sudo to install package(s).  "
                 "Are you sure? [y/N] ")
-        s = rinput().lower()
+        s = input().lower()
         if not s or s[0] != "y":
             sys.stderr.write("Interrupted.\n")
             sys.exit()
