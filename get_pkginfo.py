@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-# -*- coding: euc-jp -*-
+# -*- coding: utf-8 -*-
 
 import argparse, os, re, subprocess, urllib2, sys, pickle
 import urllib, time, ftplib
@@ -54,8 +54,8 @@ def get_file_confs(conf_file):
 
 def url_completion(url):
     if not url.endswith("/"):
-        url += "/"      # Ç°¤Î¤¿¤á
-    current = "6.x"
+        url += "/"      # å¿µã®ãŸã‚
+    current = "7.x"
     if os.path.isfile("/etc/plamo-release"):
         # format: Plamo Linux release x.y
         info = open("/etc/plamo-release", "r").readline()
@@ -97,9 +97,9 @@ def get_confs():
                           "manual"         if param.interactive else ""
     confs["REVERSE"]    = True             if param.reverse     else False
     """
-    ³Æ¼ïÀßÄê¤Ï¡¤
-    °ú¿ô > ¥í¡¼¥«¥ë(~/.pkginfo) > ¥·¥¹¥Æ¥à(/etc/pkginfo.conf)
-    ¤Î½ç¤ËÉ¾²Á¤¹¤ë¡¥
+    å„ç¨®è¨­å®šã¯ï¼Œ
+    å¼•æ•° > ãƒ­ãƒ¼ã‚«ãƒ«(~/.pkginfo) > ã‚·ã‚¹ãƒ†ãƒ (/etc/pkginfo.conf)
+    ã®é †ã«è©•ä¾¡ã™ã‚‹ï¼
     """
     loc_confs = get_file_confs(os.path.expanduser("~/.pkginfo"))
     sys_confs = get_file_confs("/etc/pkginfo.conf")
@@ -109,11 +109,11 @@ def get_confs():
         elif i in sys_confs:
             confs[i] = sys_confs[i]
     """
-    ¥í¡¼¥«¥ë¤Î Plamo ¥Ğ¡¼¥¸¥ç¥ó¤È¥¢¡¼¥­Ì¾¤ò¼èÆÀ¤·¡¤URL ¤òÊä´°¤¹¤ë¡¥
+    ãƒ­ãƒ¼ã‚«ãƒ«ã® Plamo ãƒãƒ¼ã‚¸ãƒ§ãƒ³ã¨ã‚¢ãƒ¼ã‚­åã‚’å–å¾—ã—ï¼ŒURL ã‚’è£œå®Œã™ã‚‹ï¼
     """
     confs["URL"] = url_completion(confs["URL"])
     """
-    ¥í¡¼¥«¥ë¤Ç¥Ö¥í¥Ã¥¯¤·¤¿¤¤¥Ñ¥Ã¥±¡¼¥¸¤ÏÄÉ²Ã¤¹¤ëÊı¤¬ÊØÍø¤À¤í¤¦¡¥
+    ãƒ­ãƒ¼ã‚«ãƒ«ã§ãƒ–ãƒ­ãƒƒã‚¯ã—ãŸã„ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã¯è¿½åŠ ã™ã‚‹æ–¹ãŒä¾¿åˆ©ã ã‚ã†ï¼
     """
     confs["LOCALBLOCK"] = param.localblock if param.localblock else ""
     if "LOCALBLOCK" in loc_confs:
@@ -121,7 +121,7 @@ def get_confs():
     if "LOCALBLOCK" in sys_confs:
         confs["LOCALBLOCK"] += " " + sys_confs["LOCALBLOCK"]
     """
-    confs["INSTALL"] ¤¬»ØÄê¤µ¤ì¤Æ¤¤¤ì¤Ğ sudo ¤¹¤ë»İ¤ò·Ù¹ğ¤¹¤ë¡¥
+    confs["INSTALL"] ãŒæŒ‡å®šã•ã‚Œã¦ã„ã‚Œã° sudo ã™ã‚‹æ—¨ã‚’è­¦å‘Šã™ã‚‹ï¼
     """
     if confs["INSTALL"]:
         sys.stderr.write("You need sudo to install package(s).  "
@@ -165,25 +165,28 @@ def rev_replaces(replaces):
 def get_category(pkgs, confs):
     if confs["CATEGORY"]:
         if confs["CATEGORY"] == "all":
-            category = ["00_base", "01_minimum", "02_x11", "03_xclassics",
-                    "04_xapps", "05_ext", "06_xfce", "07_kde", "08_tex",
-                    "09_kernel", "10_lof", "11_mate"]
+            category = ["00_base", "01_minimum", "02_devel", "03_libs",
+                    "04_x11", "05_ext", "06_xapps", "07_multimedia", "08_daemons",
+                        "09_printings", "10_xfce", "11_lxqt", "12_mate", "13_tex",
+                        "14_libreoffice", "15_krenelsrc", "16_virtualization"]
         else:
             category = []
             for i in confs["CATEGORY"].split():
                 category.append(i)
         return category
     """
-    ³Æ¥«¥Æ¥´¥ê¤ÎÂåÉ½Åª¤Ê¥Ñ¥Ã¥±¡¼¥¸¤Î¥ê¥¹¥È¡¥¤³¤ì¤é¤Î¥Ñ¥Ã¥±¡¼¥¸¤¬¥¤¥ó¥¹
-    ¥È¡¼¥ëºÑ¤ß¤Ê¤é¤Ğ¡¤¤½¤Î¥«¥Æ¥´¥ê¤ÏÁªÂò¤µ¤ì¤Æ¤¤¤¿¤È¹Í¤¨¤ë¡¥
+    å„ã‚«ãƒ†ã‚´ãƒªã®ä»£è¡¨çš„ãªãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã®ãƒªã‚¹ãƒˆï¼ã“ã‚Œã‚‰ã®ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãŒã‚¤ãƒ³ã‚¹
+    ãƒˆãƒ¼ãƒ«æ¸ˆã¿ãªã‚‰ã°ï¼Œãã®ã‚«ãƒ†ã‚´ãƒªã¯é¸æŠã•ã‚Œã¦ã„ãŸã¨è€ƒãˆã‚‹ï¼
     """
     category = ["00_base"]
-    reps = {"01_minimum": "gcc",      "02_x11": "xorg_server",
-            "03_xclassics": "kterm",  "04_xapps": "firefox",
-            "05_ext": "mplayer",      "06_xfce": "xfwm4",
-            "07_kde": "kde_baseapps", "08_tex": "ptexlive",
-            "09_kernel": "kernelsrc", "10_lof": "libreoffice_base",
-            "11_mate": "mate_desktop"}
+    reps = {"01_minimum": "openssh",      "02_devel": "gcc",
+            "03_libs": "glib",  "04_x11": "xorg_server",
+            "05_ext": "dbus",      "06_xapps": "firefox",
+            "07_multimedia": "ffmpeg", "08_daemons": "postfix",
+            "09_printings": "cups", "10_xfce": "xfwm4",
+            "11_lxqt": "lxqt_session", "12_mate": "marco",
+            "13_tex": "texlive", "14_libreoffice":"libreoffice",
+            "15_kernelsrc":"kernelsrc", "16_virtualization":"lxc"}
     for i in sorted(reps.keys()):
         if reps[i] in pkgs:
             category.append(i)
@@ -304,28 +307,28 @@ def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
 def main():
     confs = get_confs()
     """
-    local_pkgs: ¤³¤Î´Ä¶­¤Ë¥¤¥ó¥¹¥È¡¼¥ëºÑ¤ß¥Ñ¥Ã¥±¡¼¥¸¤Î¥ê¥¹¥È
-    ftp_pkgs: FTP¥µ¡¼¥Ğ¾å¤Ë¤¢¤ë¥Ñ¥Ã¥±¡¼¥¸¤Î¥ê¥¹¥È
+    local_pkgs: ã“ã®ç’°å¢ƒã«ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«æ¸ˆã¿ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã®ãƒªã‚¹ãƒˆ
+    ftp_pkgs: FTPã‚µãƒ¼ãƒä¸Šã«ã‚ã‚‹ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã®ãƒªã‚¹ãƒˆ
     """
     local_pkgs = get_local_pkgs()
     ftp_pkgs = get_ftp_pkgs(confs)
     """
-    -b ¥ª¥×¥·¥ç¥ó¤ò»ØÄê¤·¤Æ¥Ö¥í¥Ã¥¯¥ê¥¹¥È¤ò²ò½ü¤·¤¿¾ì¹ç¤â¡¤Èó¥¤¥ó¥¹¥È¡¼
-    ¥ë¥ê¥¹¥È(ftp_pkgs["__no_install"])¤ÏÍ­¸ú¤Ç¤¢¤ë¤Ù¤­¤Ê¤Î¤Ç¡¤¥·¥¹¥Æ¥à
-    ¤Î¥Ö¥í¥Ã¥¯¥¹¥È¤òÈó¥¤¥ó¥¹¥È¡¼¥ë¥ê¥¹¥È¤ËÄÉ²Ã¤·¤Æ¤ª¤¯¡¥
+    -b ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã‚’æŒ‡å®šã—ã¦ãƒ–ãƒ­ãƒƒã‚¯ãƒªã‚¹ãƒˆã‚’è§£é™¤ã—ãŸå ´åˆã‚‚ï¼Œéã‚¤ãƒ³ã‚¹ãƒˆãƒ¼
+    ãƒ«ãƒªã‚¹ãƒˆ(ftp_pkgs["__no_install"])ã¯æœ‰åŠ¹ã§ã‚ã‚‹ã¹ããªã®ã§ï¼Œã‚·ã‚¹ãƒ†ãƒ 
+    ã®ãƒ–ãƒ­ãƒƒã‚¯ã‚¹ãƒˆã‚’éã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ãƒªã‚¹ãƒˆã«è¿½åŠ ã—ã¦ãŠãï¼
     """
     for i in ftp_pkgs["__blockpkgs"]:
         ftp_pkgs["__no_install"].append(i)
     """
-    LOCALBLOCK (--localblock) ¥ª¥×¥·¥ç¥ó¤Ç»ØÄê¤·¤¿¥Ñ¥Ã¥±¡¼¥¸Ì¾¤ò¡¤
-    blockpkgs ¤ËÄÉ²Ã¤¹¤ë¡¥
+    LOCALBLOCK (--localblock) ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã§æŒ‡å®šã—ãŸãƒ‘ãƒƒã‚±ãƒ¼ã‚¸åã‚’ï¼Œ
+    blockpkgs ã«è¿½åŠ ã™ã‚‹ï¼
     """
     if confs["LOCALBLOCK"]:
         for i in confs["LOCALBLOCK"].split():
             ftp_pkgs["__blockpkgs"].append(i)
     """
-    -b ¥ª¥×¥·¥ç¥ó¤ò»ØÄê¤·¤Ê¤±¤ì¤Ğ¡¤¥Ö¥í¥Ã¥¯¥ê¥¹¥È¤Ë»ØÄê¤·¤¿¥Ñ¥Ã¥±¡¼¥¸
-    (ftp_pkgs["__blockpkgs"])¤ÏÉ½¼¨¤·¤Ê¤¤(= local_pkgs ¥ê¥¹¥È¤«¤é½ü¤¯)
+    -b ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã‚’æŒ‡å®šã—ãªã‘ã‚Œã°ï¼Œãƒ–ãƒ­ãƒƒã‚¯ãƒªã‚¹ãƒˆã«æŒ‡å®šã—ãŸãƒ‘ãƒƒã‚±ãƒ¼ã‚¸
+    (ftp_pkgs["__blockpkgs"])ã¯è¡¨ç¤ºã—ãªã„(= local_pkgs ãƒªã‚¹ãƒˆã‹ã‚‰é™¤ã)
     """
     if confs["BLOCKLIST"] and not confs["REVERSE"]:
         for bp in ftp_pkgs["__blockpkgs"]:
@@ -334,13 +337,13 @@ def main():
             if bp in ftp_pkgs:
                 del(ftp_pkgs[bp])
     """
-    ²şÌ¾¤·¤¿¥Ñ¥Ã¥±¡¼¥¸¤òÄÉÀ×¤¹¤ë¤¿¤á¤Î½èÍı¡¥ftp_pkgs["__replaces"] ¤Ë¤Ï¡¤
-    ³ºÅö¤¹¤ë¥Ñ¥Ã¥±¡¼¥¸¤¬ replace_list["old_name"] = "new_name" ¤È¤¤¤¦·Á
-    ¤ÇÆş¤Ã¤Æ¤ª¤ê¡¤check_replaces() ¤Ç¡¤local_pkgs["old_name"] ¤ò
-    local_pkgs["new_name"] = (ver, arch, build) ¤Î·Á¤ËÁÈ¤ßÄ¾¤·¡¤
-    ftp_pkgs["new_name"] ¤ÈÈæ³Ó¤·¤Æ¹¹¿·ÂĞ¾İ¤Ë¤¹¤ë¡¥
-    ¤½¤Îºİ¡¤local_pkgs ¤Î old_name ¤Ï¼º¤Ê¤ï¤ì¤ë¤Î¤Ç¡¤É½¼¨ÍÑ¤Ë
-    replace_list[] ¤òµÕ°ú¤­¤Ë¤·¤¿ rev_list[] ¤ò»È¤¦¡¥
+    æ”¹åã—ãŸãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã‚’è¿½è·¡ã™ã‚‹ãŸã‚ã®å‡¦ç†ï¼ftp_pkgs["__replaces"] ã«ã¯ï¼Œ
+    è©²å½“ã™ã‚‹ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãŒ replace_list["old_name"] = "new_name" ã¨ã„ã†å½¢
+    ã§å…¥ã£ã¦ãŠã‚Šï¼Œcheck_replaces() ã§ï¼Œlocal_pkgs["old_name"] ã‚’
+    local_pkgs["new_name"] = (ver, arch, build) ã®å½¢ã«çµ„ã¿ç›´ã—ï¼Œ
+    ftp_pkgs["new_name"] ã¨æ¯”è¼ƒã—ã¦æ›´æ–°å¯¾è±¡ã«ã™ã‚‹ï¼
+    ãã®éš›ï¼Œlocal_pkgs ã® old_name ã¯å¤±ãªã‚ã‚Œã‚‹ã®ã§ï¼Œè¡¨ç¤ºç”¨ã«
+    replace_list[] ã‚’é€†å¼•ãã«ã—ãŸ rev_list[] ã‚’ä½¿ã†ï¼
     """
     check_pkgs = check_replaces(local_pkgs, ftp_pkgs["__replaces"])
     rev_list = rev_replaces(ftp_pkgs["__replaces"])
@@ -356,8 +359,8 @@ def main():
                 not_installed.append((path_list, path, pkgname))
         print("un-selected package(s):")
         """
-        ¥«¥Æ¥´¥ê¡¼ÊÌ¤Ë¡¤¥«¥Æ¥´¥ê¡¼Æâ¤Î¥Ñ¥Ã¥±¡¼¥¸¤ò Plamo ¥¤¥ó¥¹¥È¡¼¥é¤¬
-        ¥¤¥ó¥¹¥È¡¼¥ë¤¹¤ë½çÈÖ¤Ë¥½¡¼¥È¤·¤ÆÉ½¼¨¤¹¤ë¡¥
+        ã‚«ãƒ†ã‚´ãƒªãƒ¼åˆ¥ã«ï¼Œã‚«ãƒ†ã‚´ãƒªãƒ¼å†…ã®ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã‚’ Plamo ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ©ãŒ
+        ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã‚‹é †ç•ªã«ã‚½ãƒ¼ãƒˆã—ã¦è¡¨ç¤ºã™ã‚‹ï¼
         """
         print("category: {}".format(sorted(not_installed)[0][0][0]))
         ct_prev = sorted(not_installed)[0][0][0]
