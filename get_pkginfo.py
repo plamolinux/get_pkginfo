@@ -1,8 +1,8 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import argparse, os, re, subprocess, urllib2, sys, pickle
-import urllib, time, ftplib
+import argparse, os, re, subprocess, urllib.request, urllib.error, urllib.parse, sys, pickle
+import urllib.request, urllib.parse, urllib.error, time, ftplib
 
 PKG_PATH = "/var/log/packages/"
 
@@ -33,6 +33,8 @@ def get_args():
             help="install downloaded package(s) interactively")
     parser.add_argument("-r", "--reverse", action="store_true",
             help="find un-selected package(s)")
+    parser.add_argument("-t", "--total", action="store_true",
+            help="includes contrib directory")
     return parser.parse_args()
 
 def get_file_confs(conf_file):
@@ -65,20 +67,22 @@ def url_completion(url):
         info = sorted(os.listdir("/usr/lib/setup"))
         version = info[-1].split("-")[-1]
     else:
-        print("Cannot find valid version tag.  "
-                "Suppose you use Plamo current({})".format(current))
+        print(("Cannot find valid version tag.  "
+                "Suppose you use Plamo current({})".format(current)))
         version = current
     version = re.sub("\..*", ".x", version)
-    arch = subprocess.check_output("uname -m".split()).strip()
+    # python3 distinguish between str and byte
+    tarch = subprocess.check_output("uname -m".split())
+    arch = tarch.decode().strip()
     arch = "x86" if arch == "i686" else "arm" if arch == "armv7l" else arch
     try:
-        urllib2.urlopen(url + "allpkgs.pickle").close()
+        urllib.request.urlopen(url + "allpkgs.pickle").close()
         return url
-    except urllib2.URLError:
+    except urllib.error.URLError:
         try:
-            urllib2.urlopen(url + arch + "/allpkgs.pickle").close()
+            urllib.request.urlopen(url + arch + "/allpkgs.pickle").close()
             return url + arch + "/"
-        except urllib2.URLError:
+        except urllib.error.URLError:
             return url + "Plamo-" + version + "/" + arch + "/"
 
 def get_confs():
@@ -96,6 +100,7 @@ def get_confs():
     confs["INSTALL"]    = "auto"           if param.autoinstall else \
                           "manual"         if param.interactive else ""
     confs["REVERSE"]    = True             if param.reverse     else False
+    confs["TOTAL"]      = True             if param.total       else False
     """
     各種設定は，
     引数 > ローカル(~/.pkginfo) > システム(/etc/pkginfo.conf)
@@ -103,7 +108,7 @@ def get_confs():
     """
     loc_confs = get_file_confs(os.path.expanduser("~/.pkginfo"))
     sys_confs = get_file_confs("/etc/pkginfo.conf")
-    for i in confs.keys():
+    for i in list(confs.keys()) :
         if i in loc_confs:
             confs[i] = loc_confs[i]
         elif i in sys_confs:
@@ -126,7 +131,7 @@ def get_confs():
     if confs["INSTALL"]:
         sys.stderr.write("You need sudo to install package(s).  "
                 "Are you sure? [y/N] ")
-        s = raw_input().lower()
+        s = rinput().lower()
         if not s or s[0] != "y":
             sys.stderr.write("Interrupted.\n")
             sys.exit()
@@ -146,10 +151,10 @@ def get_local_pkgs():
     return pkglist
 
 def get_ftp_pkgs(confs):
-    return pickle.load(urllib2.urlopen(confs["URL"] + "allpkgs.pickle"))
+    return pickle.load(urllib.request.urlopen(confs["URL"] + "allpkgs.pickle"))
 
 def check_replaces(orig_list, replaces):
-    for ck in replaces.keys():
+    for ck in list(replaces.keys()) :
         if ck in orig_list:
             (ver, arch, build) = orig_list[ck]
             del(orig_list[ck])
@@ -285,21 +290,21 @@ def install_pkg(pkgname, ftp_pkgs, rev_list, confs):
     if base in rev_list:
         if confs["INSTALL"] == "manual":
             sys.stderr.write("Remove {}? [y/N] ".format(rev_list[base]))
-            s = raw_input().lower()
+            s = input().lower()
             if not s or s[0] != "y":
                 sys.stderr.write("Skipped.\n")
                 return False
-        print("removing {}".format(rev_list[base]))
+        print(("removing {}".format(rev_list[base])))
         cmd = "sudo /sbin/removepkg {}".format(rev_list[base])
-        print("invoking: {}".format(cmd))
-        print(subprocess.check_call(cmd.split()))
+        print(("invoking: {}".format(cmd)))
+        print((subprocess.check_call(cmd.split())))
     if confs["INSTALL"] == "manual":
         sys.stderr.write("Install {}? [y/N] ".format(base))
-        s = raw_input().lower()
+        s = input().lower()
         if not s or s[0] != "y":
             sys.stderr.write("Skipped.\n")
             return False
-    print("installing: {}".format(pkgname))
+    print(("installing: {}".format(pkgname)))
     cmd = "sudo /sbin/updatepkg -f {}".format(pkgname)
     print("invoking: {}".format(cmd))
     return subprocess.check_call(cmd.split())
@@ -326,6 +331,15 @@ def main():
     if confs["LOCALBLOCK"]:
         for i in confs["LOCALBLOCK"].split():
             ftp_pkgs["__blockpkgs"].append(i)
+
+    for i in list(ftp_pkgs.keys()) :
+        add_block = None
+        for j in ftp_pkgs["__blockpkgs"] :
+            if i.find(j) == 0:
+                add_block = i
+        if add_block :
+            ftp_pkgs["__blockpkgs"].append(add_block)
+                
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
@@ -336,6 +350,17 @@ def main():
                 del(local_pkgs[bp])
             if bp in ftp_pkgs:
                 del(ftp_pkgs[bp])
+    """
+    -t オプションを指定しなければ，contrib 以下は対象から除く
+    """
+    if confs["TOTAL"] == False:
+        for i in list(ftp_pkgs.keys()) :
+            if i in ["__blockpkgs", "__replaces", "__no_install"]:
+                continue
+            if ftp_pkgs[i][4].find("contrib/") >= 0:
+                # print("{} {} deleted".format(i, ftp_pkgs[i]))
+                del(ftp_pkgs[i])
+
     """
     改名したパッケージを追跡するための処理．ftp_pkgs["__replaces"] には，
     該当するパッケージが replace_list["old_name"] = "new_name" という形
@@ -349,10 +374,10 @@ def main():
     rev_list = rev_replaces(ftp_pkgs["__replaces"])
     if confs["REVERSE"]:
         not_installed = []
-        for i in ftp_pkgs.keys():
+        for i in list(ftp_pkgs.keys()) :
             if i in ["__blockpkgs", "__replaces", "__no_install"]:
                 continue
-            if not check_pkgs.has_key(i):
+            if i not in check_pkgs:
                 (ver, p_arch, build, ext, path) = ftp_pkgs[i]
                 pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
                 path_list = "{}/{}".format(path, pkgname).split("/")[1:]
@@ -362,58 +387,59 @@ def main():
         カテゴリー別に，カテゴリー内のパッケージを Plamo インストーラが
         インストールする順番にソートして表示する．
         """
-        print("category: {}".format(sorted(not_installed)[0][0][0]))
+        print(("category: {}".format(sorted(not_installed)[0][0][0])))
         ct_prev = sorted(not_installed)[0][0][0]
         for i in sorted(not_installed):
             if i[0][0] != ct_prev:
-                print("category: {}".format(i[0][0]))
+                print(("category: {}".format(i[0][0])))
             ct_prev = i[0][0]
-            print("\t{}".format("/".join(i[0][1:])))
+            print(("\t{}".format("/".join(i[0][1:]))))
         return
     category = get_category(local_pkgs, confs)
     need_install = []
-    for i in ftp_pkgs.keys():
+    for i in list(ftp_pkgs.keys()) :
         if i in ["__blockpkgs", "__replaces", "__no_install"]:
             continue
+        # print("i:{} ftp_pkgs:{}".format(i, ftp_pkgs[i]))
         (ver, p_arch, build, ext, path) = ftp_pkgs[i]
         if confs["CATEGORY"]:
             if path.split("/")[1] not in category:
                 continue
         else:
-            if not (path.split("/")[1] in category or check_pkgs.has_key(i)):
+            if not (path.split("/")[1] in category or i in check_pkgs):
                 continue
-        if not check_pkgs.has_key(i) or check_pkgs[i] != (ver, p_arch, build):
+        if i not in check_pkgs or check_pkgs[i] != (ver, p_arch, build):
             pkgname = "{}-{}-{}-{}.{}".format(i, ver, p_arch, build, ext)
             path_list = "{}/{}".format(path, pkgname).split("/")[1:]
             need_install.append((path_list, path, pkgname))
     for i in sorted(need_install):
         base = i[2].split("-")[0]
         (ver, p_arch, build, ext, path) = ftp_pkgs[base]
-        if not check_pkgs.has_key(base):
+        if base not in check_pkgs :
             pkgname = "{}-{}-{}-{}".format(base, ver, p_arch, build)
-            print("** {} should be a new package in {} category."
-                    .format(pkgname, path.split("/")[1]))
+            print(("** {} should be a new package in {} category."
+                    .format(pkgname, path.split("/")[1])))
         elif base in rev_list:
             (local_ver, local_arch, local_build) = check_pkgs[base]
-            print("** local package: {}-{}-{}-{} was renamed to"
-                    .format(rev_list[base], local_ver, local_arch, local_build))
-            print("** new   package: {}-{}-{}-{}".format(base, ver, p_arch,
-                    build))
-            print("** You should manually remove old package "
+            print(("** local package: {}-{}-{}-{} was renamed to"
+                    .format(rev_list[base], local_ver, local_arch, local_build)))
+            print(("** new   package: {}-{}-{}-{}".format(base, ver, p_arch,
+                    build)))
+            print(("** You should manually remove old package "
                     "(# removepkg {}) to update new one."
-                    .format(rev_list[base]))
+                    .format(rev_list[base])))
         else:
             (local_ver, local_arch, local_build) = check_pkgs[base]
-            print("local package: {}-{}-{}-{}"
-                    .format(base, local_ver, local_arch, local_build))
-            print("new   package: {}-{}-{}-{}"
-                    .format(base, ver, p_arch, build))
-        print("URL: {}{}/{}".format(confs["URL"], i[1], i[2]))
+            print(("local package: {}-{}-{}-{}"
+                    .format(base, local_ver, local_arch, local_build)))
+            print(("new   package: {}-{}-{}-{}"
+                    .format(base, ver, p_arch, build)))
+        print(("URL: {}{}/{}".format(confs["URL"], i[1], i[2])))
         if confs["DOWNLOAD"]:
             cwd = os.getcwd()
             mwd = download_pkg(confs["URL"], i[1], i[2], confs)
             if confs["INSTALL"]:
-                print(install_pkg(i[2], ftp_pkgs, rev_list, confs))
+                print((install_pkg(i[2], ftp_pkgs, rev_list, confs)))
             if mwd != cwd:
                 os.chdir(cwd)
         print("")
