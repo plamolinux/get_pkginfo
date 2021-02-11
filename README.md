@@ -4,7 +4,7 @@ Script to check and download updated packages for Plamo Linux
 
 ```
 usage: get_pkginfo.py [-h] [-v] [-u URL] [-d | -s] [-o DOWNTODIR]
-                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i] [-r]
+                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i] [-r] [-t]
 
 Plamo Linux update packages check and download
 
@@ -24,47 +24,48 @@ optional arguments:
   -a, --autoinstall     install downloaded package(s) automatically
   -i, --interactive     install downloaded package(s) interactively
   -r, --reverse         find un-selected package(s)
+  -t, --total           includes contrib directory
 ```
 
 ```
-��get_pkginfo ���ޥ�ɤ�����ե�����
+○get_pkginfo コマンドの設定ファイル
 
-~/.pkginfo        : �Ŀͥ�٥�����ꤷ�������ܤ���ꤹ�롥
-/etc/pkginfo.conf : �����ƥ��٥�Ǿ�����ꤷ�������ܤ���ꤹ�롥
+~/.pkginfo        : 個人レベルで設定したい項目を指定する．
+/etc/pkginfo.conf : システムレベルで常に設定したい項目を指定する．
 
-~/.pkginfo��/etc/pkginfo.conf �ν�˥ѡ����������ꤷ�����ܤ����Ԥ�ͥ��
-����롥
+~/.pkginfo，/etc/pkginfo.conf の順にパースし，指定した項目は前者が優先
+される．
 
-[��Ƥ����]
+[検討事項]
 
-�ǥե���Ȥ������ͤϥ�����ץ������ᤳ��Ǥ���Τǡ������Υե�����
-��̵���Ƥ�ư����
-��˻��ꤷ�������ܤϰ����ǤϤʤ�����ե�����˽񤱤��������������ɡ���
-��Τ褦����ޥ���桼���ʻȤ����Ǥϡ��ɤ��餫�����ǽ�ʬ�ʵ������롥
+デフォルトの設定値はスクリプト内に埋めこんでいるので，これらのファイル
+は無くても動く．
+常に指定したい項目は引数ではなく設定ファイルに書ける方が便利だけど，最
+近のように非マルチユーザな使い方では，どちらかだけで十分な気がする．
 
-���������
+○設定項目
 
-URL        : �����å�/�������������� URL
-             (ex: ftp://plamo.linet.gr.jp/pub/)��
-DOWNLOAD   : ����������ɤ����ѥå������γ�Ǽ��ˡ�� linear �� subdir ��
-             ���롥linear �ξ�硤ñ��Υǥ��쥯�ȥ�˼���롥subdir ��
-             ��硤���ƥ��ꤴ�ȤΥ��֥ǥ��쥯�ȥ�˼���롥
-DOWNTODIR  : ����������ɤ����ѥå��������֤����(�׽񤭹��ߥѡ��ߥå�
-             ���)(ex: /var/Newpkgs)��
-CATEGORY   : ���󥹥ȡ��뤷�����ƥ���˴ؤ�餺�����å����������ƥ����
-             ���ꤹ�롥all ����ꤷ����硤�����ƥ��������å����롥
-LOCALBLOCK : �֥��å��������ѥå�����̾����Ԥ˥١���̾�򥹥ڡ������ڤ�
-             ��Ϣ�ͤƽ�(ex: man man_db ffmpeg mplayer)��
-INSTALL    : ��ư���󥹥ȡ���Υ⡼�ɤ� auto �� manual �ˤ��롥manual
-             �ξ�硤�ƥѥå������Υ��󥹥ȡ������˳�ǧ���롥auto �ξ�
-             ����䤤��碌���˥��󥹥ȡ����ʤ�롥
+URL        : チェック/ダウンロード先の URL
+             (ex: ftp://plamo.linet.gr.jp/pub/)．
+DOWNLOAD   : ダウンロードしたパッケージの格納方法を linear か subdir に
+             する．linear の場合，単一のディレクトリに収める．subdir の
+             場合，カテゴリごとのサブディレクトリに収める．
+DOWNTODIR  : ダウンロードしたパッケージの置き場所(要書き込みパーミッシ
+             ョン)(ex: /var/Newpkgs)．
+CATEGORY   : インストールしたカテゴリに関わらずチェックしたいカテゴリを
+             指定する．all を指定した場合，全カテゴリをチェックする．
+LOCALBLOCK : ブロックしたいパッケージ名．一行にベース名をスペース区切り
+             で連ねて書く(ex: man man_db ffmpeg mplayer)．
+INSTALL    : 自動インストールのモードを auto か manual にする．manual
+             の場合，各パッケージのインストール前に確認する．auto の場
+             合は問い合わせずにインストールを進める．
 
-�ʲ��ι��ܤ� True/False �ǻ��ꡥ
-VERBOSE   : (̤����)
-BLOCKLIST : �֥��å��ꥹ�ȵ�ǽ��̵ͭ��
-REVERSE   : ��������˥��󥹥ȡ��뤵��Ƥ��ʤ��ѥå�������ɽ�����롥
+以下の項目は True/False で指定．
+VERBOSE   : (未実装)
+BLOCKLIST : ブロックリスト機能の有無．
+REVERSE   : ローカルにインストールされていないパッケージを表示する．
 
-������ե�������
+○設定ファイル例
 
 ex1:
 URL = ftp://plamo.linet.gr.jp/pub/
@@ -81,7 +82,7 @@ CATEGORY = 00_base 03_xclassics 05_ext
 LOCALBLOCK = "man man_db ffmpeg"
 INSTALL = manual
 
-����ե�����Υѡ�����
+設定ファイルのパースは
 
 if not l.startswith("#"):
     try:
@@ -94,61 +95,61 @@ if not l.startswith("#"):
         confs[key] = True if val == "True" \
                 else False if val == "False" else val
 
-���餤�������Ƥʤ��Τǡ���Ƭ�� "#" ������Х����ȤȤ���̵�롤"=" �Ƕ�
-�ڤ�줿2�Ĥι��ܤ� key �� data �Ȥ����ɤ߹���Τǡ�data ���ϥ������Ȥ�
-�ʤ��Ƥ�ʣ���ι��ܤ�񤱤�(" ' �� strip �Ϥ���Τǥ������Ȥ��Ƥ⤤��)��
+くらいしかしてないので，行頭に "#" があればコメントとして無視，"=" で区
+切られた2つの項目を key と data として読み込むので，data 部はクォートし
+なくても複数の項目を書ける(" ' も strip はするのでクォートしてもいい)．
 
-���ꤷ�ʤ��ä����ܤϡ�������ץȤ���ᤳ����ʲ��Υǥե�����ͤ��Ȥ��
-�롥
+指定しなかった項目は，スクリプトに埋めこんだ以下のデフォルト値が使われ
+る．
 
-VERBOSE    : False (̤����)
+VERBOSE    : False (未実装)
 URL        : http://repository.plamolinux.org/pub/linux/Plamo/
-DOWNLOAD   : "" (����������ɤ��ʤ�)
+DOWNLOAD   : "" (ダウンロードしない)
 DOWNTODIR  : "" (= cwd)
-CATEGORY   : "" (̵��)
+CATEGORY   : "" (無し)
 BLOCKLIST  : True
-LOCALBLOCK : "" (̵��)
-INSTALL    : "" (��ư���󥹥ȡ��뤷�ʤ�)
+LOCALBLOCK : "" (無し)
+INSTALL    : "" (自動インストールしない)
 REVERSE    : False
 
-�������ˤ�����
+○引数による指定
 
-�����ι��ܤϰ����ˤ�äƻ��ꡤ�ѹ����뤳�Ȥ�Ǥ��롥�����ǽ�ʹ��ܤ�
-�ʲ����̤ꡥ
--l (--localblock) �ʳ������������ե�������ͤ��񤭤���Τǡ������
-��������ѹ������˰��Ū���ѹ����������Ȥ����ݤ�������
+これらの項目は引数によって指定，変更することもできる．指定可能な項目は
+以下の通り．
+-l (--localblock) 以外の設定は設定ファイルの値を上書きするので，設定フ
+ァイルを変更せずに一時的に変更したい，という際に便利．
 
--v/--verbose     : ���Ϥ��Ĺ�ˤ���(̤����)��
+-v/--verbose     : 出力を冗長にする(未実装)．
 
--u/--url         : �����å�/�������������� URL��
-                   ftp://plamo.linet.gr.jp/pub/ �Τ褦�˺Ǹ�� "/" �ޤ�
-                   ɬ�ס�
-                   file:///cdrom/ �Τ褦�ˡ���������˥ޥ���Ȥ��� DVD
-                   ����ꤹ�뤳�Ȥ��ǽ��
+-u/--url         : チェック/ダウンロード先の URL．
+                   ftp://plamo.linet.gr.jp/pub/ のように最後の "/" まで
+                   必要．
+                   file:///cdrom/ のように，ローカルにマウントした DVD
+                   を指定することも可能．
 
--d/--download    : �ѥå����������������ɤ���(-s ����¾)��
+-d/--download    : パッケージをダウンロードする(-s と排他)．
 
--s/--dlsubdir    : �ѥå������򥵥֥ǥ��쥯�ȥ�ȶ��˥���������ɤ���
-                   (-d ����¾)��
+-s/--dlsubdir    : パッケージをサブディレクトリと共にダウンロードする
+                   (-d と排他)．
 
--o/--downtodir   : �ѥå������򥻡��֤�����Υǥ��쥯�ȥ����ꤹ�롥
+-o/--downtodir   : パッケージをセーブする先のディレクトリを指定する．
 
--c/--category    : ���󥹥ȡ��뤷�����ƥ���˴ؤ�餺�����å�����������
-                   �������ꤹ�롥all ����ꤷ����硤�����ƥ�������
-                   �å����롥
+-c/--category    : インストールしたカテゴリに関わらずチェックしたいカテ
+                   ゴリを指定する．all を指定した場合，全カテゴリをチェ
+                   ックする．
 
--b/--blocklist   : �֥��å��ꥹ�ȵ�ǽ�򥪥դˤ���(�ǥե���ȥ���)��
+-b/--blocklist   : ブロックリスト機能をオフにする(デフォルトオン)．
 
--l/--localblock  : ��������˥֥��å��������ѥå������Υ١���̾����ꤹ
-                   �롥
-                   ʣ�����ꤹ����� "man man_db ..." �Τ褦�˥��ڡ���
-                   �Ƕ��ڤꡤ*�������Ȥ���*��
-                   ���ι��ܤ�����ե�����λ����*�ɲä����*��
+-l/--localblock  : ローカルにブロックしたいパッケージのベース名を指定す
+                   る．
+                   複数指定する場合は "man man_db ..." のようにスペース
+                   で区切り，*クォートする*．
+                   この項目は設定ファイルの指定に*追加される*．
 
--a/--autoinstall : ��ư���󥹥ȡ���⡼�ɤ� auto �ˤ���(-i ����¾)��
+-a/--autoinstall : 自動インストールモードを auto にする(-i と排他)．
 
--i/--interactive : ��ư���󥹥ȡ���⡼�ɤ� manual �ˤ���(-a ����¾)��
+-i/--interactive : 自動インストールモードを manual にする(-a と排他)．
 
--r/--reverse     : ��������˥��󥹥ȡ��뤵��Ƥ��ʤ��ѥå�������ɽ����
-                   �롥
+-r/--reverse     : ローカルにインストールされていないパッケージを表示す
+                   る．
 ```
