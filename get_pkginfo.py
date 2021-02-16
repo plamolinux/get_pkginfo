@@ -198,8 +198,7 @@ def get_category(pkgs, confs):
     return category
 
 def download_file_url(url, file):
-    opener = urllib.FancyURLopener()
-    fi = opener.open(url)
+    fi = urllib.request.urlopen(url)
     for l in str(fi.info()).splitlines():
         if "content-length: " in l.lower():
             fsize = int(l[16:])
@@ -209,7 +208,7 @@ def download_file_url(url, file):
     data = fi.read(1024)
     sys.stdout.write("[ %10d / %10d ]" % (0, fsize))
     sys.stdout.flush()
-    with open(file, "w") as fo:
+    with open(file, "wb") as fo:
         while data:
             fo.write(data)
             count += len(data)
