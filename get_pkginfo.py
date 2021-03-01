@@ -229,7 +229,7 @@ def download_file_ftp(host, path, file):
     count = [0]
     sys.stdout.write("[ %10d / %10d ]" % (0, fsize))
     sys.stdout.flush()
-    with open(file, "w") as fo:
+    with open(file, "wb") as fo:
         def callback(data):
             fo.write(data)
             if count[0] < fsize:
