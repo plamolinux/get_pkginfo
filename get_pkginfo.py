@@ -186,7 +186,7 @@ def get_category(pkgs, confs):
     category = ["00_base"]
     reps = {"01_minimum": "openssh",      "02_devel": "gcc",
             "03_libs": "glib",  "04_x11": "xorg_server",
-            "05_ext": "dbus",      "06_xapps": "firefox",
+            "05_ext": "gvfs",      "06_xapps": "gimp",
             "07_multimedia": "ffmpeg", "08_daemons": "postfix",
             "09_printings": "cups", "10_xfce": "xfwm4",
             "11_lxqt": "lxqt_session", "12_mate": "marco",
