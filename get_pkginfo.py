@@ -1,5 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# version 3.5 for Plamo-8.0 (2023-06-09)
+#   current  を 8.x に変更
+#   ヘルプメッセージに -l の指定方法，README.md について追加
 
 import argparse, os, re, subprocess, urllib.request, urllib.error, urllib.parse, sys, pickle
 import urllib.request, urllib.parse, urllib.error, time, ftplib
@@ -7,8 +10,8 @@ import urllib.request, urllib.parse, urllib.error, time, ftplib
 PKG_PATH = "/var/log/packages/"
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Plamo Linux update "
-            "packages check and download")
+    parser = argparse.ArgumentParser(description="find and download Plamo Linux update packages",
+                                     epilog="check /usr/share/doc/get_pkginfo-<ver>/README file for more info.")
     parser.add_argument("-v", "--verbose", action="store_true",
             help="verbose messages (not implemented yet)")
     parser.add_argument("-u", "--url",
@@ -25,7 +28,7 @@ def get_args():
     parser.add_argument("-b", "--blocklist", action="store_false",
             help="ignore block list")
     parser.add_argument("-l", "--localblock",
-            help="set pkgname(s) to block")
+            help="set pkgname(s) to block. multiple names should be quoted(like -l 'Python postfix')")
     megrp2 = parser.add_mutually_exclusive_group()
     megrp2.add_argument("-a", "--autoinstall", action="store_true",
             help="install downloaded package(s) automatically")
@@ -57,7 +60,7 @@ def get_file_confs(conf_file):
 def url_completion(url):
     if not url.endswith("/"):
         url += "/"      # 念のため
-    current = "7.x"
+    current = "8.x"
     if os.path.isfile("/etc/plamo-release"):
         # format: Plamo Linux release x.y
         info = open("/etc/plamo-release", "r").readline()
