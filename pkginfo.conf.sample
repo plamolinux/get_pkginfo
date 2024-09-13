@@ -1,40 +1,51 @@
 # configuration file for get_pkginfo
+#-----------------------------------------------------------------
+# Plamo Linux の更新パッケージを確認してダウンロードするスクリプト
+#-----------------------------------------------------------------
 
 # URL
-# Download URL
+# チェック/ダウンロード先の UR
+#
 #URL = http://repository.plamolinux.org/pub/linux/Plamo/
 
 # DOWNLOAD
-# Specify whether downloaded packages will be stored in a single
-# directory (linear) or subdir (subdir) for subdirectories per
-# category.
+# ダウンロードしたパッケージの格納方法を linear か subdir に
+# する．linear の場合，単一のディレクトリに収める．subdir の
+# 場合，カテゴリごとのサブディレクトリに収める．
+#
 #DOWNLOAD = linear
 
 # DOWNTODIR
-# Where to put downloaded packages (write permissions required)
-#DOWNTODIR = /somewhere/to/put
+# ダウンロードしたパッケージの置き場所(要書き込みパーミッション)
+# (ex: /var/Newpkgs)．
+#
+#DOWNTODIR = /var/Newpkgs
 
 # CATEGORY
-# Specifies the category you want to check regardless of which
-# categories are installed. If you specify "all", all categories will
-# be checked.
+# インストールしたカテゴリに関わらずチェックしたいカテゴリを
+# 指定する．all を指定した場合，全カテゴリをチェックする．
+#
 #CATEGORY = 00_base 03_libs
 
 # LOCALBLOCK
-# Package names you want to block. Write the base names on one line,
-# separated by spaces.
+# ブロックしたいパッケージ名．一行にベース名をスペース区切り
+# で連ねて書く.
+#
 #LOCALBLOCK = man man_db ffmpeg mplayer
 
 # INSTALL
-# Sets the automatic installation mode to auto or manual. If manual,
-# you will be asked before installing each package. If auto, the
-# installation will proceed without asking.
+# 自動インストールのモードを auto か manual にする．manual
+# の場合，各パッケージのインストール前に確認する．auto の場
+# 合は問い合わせずにインストールを進める．
+#
 #INSTALL = auto
 
 # BLOCKLIST
-# Whether to use the block list feature or not.
+# ブロックリスト機能の有無．
+#
 #BLOCKLIST = True
 
 # REVERSE
-# Show packages that are not installed locally.
+# ローカルにインストールされていないパッケージを表示する．
+#
 #REVERSE = False
