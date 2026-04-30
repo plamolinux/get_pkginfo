@@ -334,14 +334,32 @@ def main():
         for i in confs["LOCALBLOCK"].split():
             ftp_pkgs["__blockpkgs"].append(i)
 
-    for i in list(ftp_pkgs.keys()) :
-        add_block = None
-        for j in ftp_pkgs["__blockpkgs"] :
-            if i.find(j) == 0:
-                add_block = i
-        if add_block :
-            ftp_pkgs["__blockpkgs"].append(add_block)
-                
+    '''
+    LOCALBLOCKで指定したパッケージ名中に '*' があれば、wildcard風に関連パッケージを
+    一括して ftp_pkgs["__blockpkgs"] に追加する。
+    '''
+           
+    wildcards = [ p for p in ftp_pkgs["__blockpkgs"] if '*' in p ]
+
+    if len(wildcards) > 0:
+        add_block = []
+        for p in wildcards:
+            ftp_pkgs["__blockpkgs"].remove(p)
+       
+        '''
+        きちんと regep として見るのは大変なので、* は「マーク」として、* を除いた部分をベースネームにマッチさせる
+        ex: mozc* でも *mozc でも mo*zc でも、uim_mozc, emacs_mozc, mozc_hogehoge にマッチする
+
+        '''
+        for p in wildcards: 
+            chk = p.replace('*','')
+            for i in list(ftp_pkgs.keys()) :
+                if chk in i :
+                    add_block.append(i)
+                   
+        ftp_pkgs["__blockpkgs"].extend(add_block)
+   
+
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
