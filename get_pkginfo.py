@@ -1,8 +1,20 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# version 3.5 for Plamo-8.0 (2023-06-09)
-#   current  を 8.x に変更
-#   ヘルプメッセージに -l の指定方法，README.md について追加
+
+'''
+version 3.5 for Plamo-8.0 (2023-06-09)
+  current  を 8.x に変更
+  ヘルプメッセージに -l の指定方法，README.md について追加
+version 3.7 @2026/04/30
+  ローカルブロックをデフォルトは完全一致(1パッケージ)、'*'マークを付けると
+  部分一致で複数パッケージをブロックするように修正
+  ex: -l 'mozc' ならば mozc パッケージのみにマッチ、-l 'mozc*' とすると
+      uim_mozc や emacs_mozc にもマッチする
+
+ '-k(--keep)'オプションを追加。このオプションを指定すると、
+   インストール済のパッケージの更新のみを調べる(デフォルトはカテゴリー単位)
+
+'''
 
 import argparse, os, re, subprocess, urllib.request, urllib.error, urllib.parse, sys, pickle
 import urllib.request, urllib.parse, urllib.error, time, ftplib
@@ -342,27 +354,27 @@ def main():
     LOCALBLOCKで指定したパッケージ名中に '*' があれば、wildcard風に関連パッケージを
     一括して ftp_pkgs["__blockpkgs"] に追加する。
     '''
-           
+            
     wildcards = [ p for p in ftp_pkgs["__blockpkgs"] if '*' in p ]
 
     if len(wildcards) > 0:
         add_block = []
         for p in wildcards:
             ftp_pkgs["__blockpkgs"].remove(p)
-       
+        
         '''
         きちんと regep として見るのは大変なので、* は「マーク」として、* を除いた部分をベースネームにマッチさせる
         ex: mozc* でも *mozc でも mo*zc でも、uim_mozc, emacs_mozc, mozc_hogehoge にマッチする
 
         '''
-        for p in wildcards: 
+        for p in wildcards:  
             chk = p.replace('*','')
             for i in list(ftp_pkgs.keys()) :
                 if chk in i :
                     add_block.append(i)
-                   
+                    
         ftp_pkgs["__blockpkgs"].extend(add_block)
-   
+    
 
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
