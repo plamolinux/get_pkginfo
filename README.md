@@ -4,7 +4,7 @@ Script to check and download updated packages for Plamo Linux
 
 ```
 usage: get_pkginfo.py [-h] [-v] [-u URL] [-d | -s] [-o DOWNTODIR]
-                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i] [-r] [-t]
+                      [-c CATEGORY] [-b] [-l LOCALBLOCK] [-a | -i] [-k | -r] [-t]
 
 Plamo Linux update packages check and download
 
@@ -23,6 +23,7 @@ optional arguments:
                         set pkgname(s) to block
   -a, --autoinstall     install downloaded package(s) automatically
   -i, --interactive     install downloaded package(s) interactively
+  -k, --keep            check only installed packages
   -r, --reverse         find un-selected package(s)
   -t, --total           includes contrib directory
 ```
@@ -63,7 +64,8 @@ INSTALL    : 自動インストールのモードを auto か manual にする�
 以下の項目は True/False で指定．
 VERBOSE   : (未実装)
 BLOCKLIST : ブロックリスト機能の有無．
-REVERSE   : ローカルにインストールされていないパッケージを表示する．
+REVERSE   : ローカルにインストールされていないパッケージを表示する(KEEPとは排他)
+KEEP      : True ならばインストール済みのパッケージについてのみチェック(REVERSEとは排他)
 
 ○設定ファイル例
 
@@ -150,6 +152,10 @@ REVERSE    : False
 
 -i/--interactive : 自動インストールモードを manual にする(-a と排他)．
 
+-k/--keep        : インストール済みのパッケージのみをチェック(-r と排他)
+
 -r/--reverse     : ローカルにインストールされていないパッケージを表示す
-                   る．
+                   る(-k と排他)
+
+-t/--total       : contrib/以下のパッケージについてもチェックする
 ```
