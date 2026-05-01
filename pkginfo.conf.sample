@@ -17,7 +17,7 @@
 
 # DOWNTODIR
 # ダウンロードしたパッケージの置き場所(要書き込みパーミッション)
-# (ex: /var/Newpkgs)．
+# (ex: /var/Newpkgs)．デフォルトでは $CWD
 #
 #DOWNTODIR = /var/Newpkgs
 
@@ -28,9 +28,12 @@
 #CATEGORY = 00_base 03_libs
 
 # LOCALBLOCK
-# ブロックしたいパッケージ名．一行にベース名をスペース区切り
-# で連ねて書く.
-#
+# ブロックしたいパッケージ名．一行にベース名をスペース区切りで連ねて書く.
+# デフォルトでは完全一致だが、部分一致で複数パッケージをブロックしたい場合、
+# マークとして'*'を使う。
+# '*'はregexではなく部分一致用のマーカーで、"mozc*"や"*mozc"、"mo*zc"の指定で、
+# mozc や emacs_mozc, mozc_hogehoge にマッチする。
+# 
 #LOCALBLOCK = man man_db ffmpeg mplayer
 
 # INSTALL
@@ -49,3 +52,10 @@
 # ローカルにインストールされていないパッケージを表示する．
 #
 #REVERSE = False
+
+# KEEP
+# インストール済みのパッケージのみをチェックする
+# デフォルトはカテゴリー単位でチェック
+#
+# KEEP = False
+

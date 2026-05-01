@@ -34,7 +34,10 @@ def get_args():
             help="install downloaded package(s) automatically")
     megrp2.add_argument("-i", "--interactive", action="store_true",
             help="install downloaded package(s) interactively")
-    parser.add_argument("-r", "--reverse", action="store_true",
+    megrp3 = parser.add_mutually_exclusive_group()
+    megrp3.add_argument("-k", "--keep", action="store_true",
+            help="check only installed packages' new version")
+    megrp3.add_argument("-r", "--reverse", action="store_true",
             help="find un-selected package(s)")
     parser.add_argument("-t", "--total", action="store_true",
             help="includes contrib directory")
@@ -104,6 +107,7 @@ def get_confs():
                           "manual"         if param.interactive else ""
     confs["REVERSE"]    = True             if param.reverse     else False
     confs["TOTAL"]      = True             if param.total       else False
+    confs["KEEP"]       = True             if param.keep        else False
     """
     各種設定は，
     引数 > ローカル(~/.pkginfo) > システム(/etc/pkginfo.conf)
@@ -334,14 +338,32 @@ def main():
         for i in confs["LOCALBLOCK"].split():
             ftp_pkgs["__blockpkgs"].append(i)
 
-    for i in list(ftp_pkgs.keys()) :
-        add_block = None
-        for j in ftp_pkgs["__blockpkgs"] :
-            if i.find(j) == 0:
-                add_block = i
-        if add_block :
-            ftp_pkgs["__blockpkgs"].append(add_block)
-                
+    '''
+    LOCALBLOCKで指定したパッケージ名中に '*' があれば、wildcard風に関連パッケージを
+    一括して ftp_pkgs["__blockpkgs"] に追加する。
+    '''
+           
+    wildcards = [ p for p in ftp_pkgs["__blockpkgs"] if '*' in p ]
+
+    if len(wildcards) > 0:
+        add_block = []
+        for p in wildcards:
+            ftp_pkgs["__blockpkgs"].remove(p)
+       
+        '''
+        きちんと regep として見るのは大変なので、* は「マーク」として、* を除いた部分をベースネームにマッチさせる
+        ex: mozc* でも *mozc でも mo*zc でも、uim_mozc, emacs_mozc, mozc_hogehoge にマッチする
+
+        '''
+        for p in wildcards: 
+            chk = p.replace('*','')
+            for i in list(ftp_pkgs.keys()) :
+                if chk in i :
+                    add_block.append(i)
+                   
+        ftp_pkgs["__blockpkgs"].extend(add_block)
+   
+
     """
     -b オプションを指定しなければ，ブロックリストに指定したパッケージ
     (ftp_pkgs["__blockpkgs"])は表示しない(= local_pkgs リストから除く)
@@ -362,6 +384,16 @@ def main():
             if ftp_pkgs[i][4].find("contrib/") >= 0:
                 # print("{} {} deleted".format(i, ftp_pkgs[i]))
                 del(ftp_pkgs[i])
+    """
+    -k オプションがあれば、インストール済みのパッケージ(local_pkgs)以外は対象から除く
+    """
+    if confs["KEEP"] == True:
+        for i in list(ftp_pkgs.keys()) :
+            if i in ["__blockpkgs", "__replaces", "__no_install"]:
+                continue
+            if i not in list(local_pkgs.keys()) :
+                del(ftp_pkgs[i])
+        # breakpoint()
 
     """
     改名したパッケージを追跡するための処理．ftp_pkgs["__replaces"] には，
