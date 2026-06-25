@@ -88,7 +88,7 @@ def url_completion(url):
         print(("Cannot find valid version tag.  "
                 "Suppose you use Plamo current({})".format(current)))
         version = current
-    version = re.sub("\..*", ".x", version)
+    version = re.sub(r"\..*", ".x", version)
     # python3 distinguish between str and byte
     tarch = subprocess.check_output("uname -m".split())
     arch = tarch.decode().strip()
